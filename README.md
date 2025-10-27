@@ -1,4 +1,4 @@
-# 🔮 FlowMancer
+# FlowMancer
 
 **AI-Powered Multi-Agent Workflow Orchestrator**
 
@@ -11,7 +11,7 @@ FlowMancer is a production-ready automation platform that combines intelligent A
 
 ---
 
-## 🌟 Features
+## Features
 
 ### **Agentic AI**
 - Multi-agent system using CrewAI
@@ -37,7 +37,7 @@ FlowMancer is a production-ready automation platform that combines intelligent A
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.11+
@@ -92,7 +92,7 @@ This will start:
 
 ---
 
-## 📖 Manual Setup (Without Docker)
+## Manual Setup (Without Docker)
 
 ### Backend Setup
 
@@ -128,7 +128,7 @@ npm run dev
 
 ---
 
-## 🎯 Usage Examples
+## Usage Examples
 
 ### 1. Lead Qualification API
 
@@ -170,7 +170,7 @@ curl -X POST http://localhost:8000/api/workflows/ \
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -201,7 +201,7 @@ curl -X POST http://localhost:8000/api/workflows/ \
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 flowmancer/
@@ -230,7 +230,7 @@ flowmancer/
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -253,7 +253,7 @@ flowmancer/
 
 ---
 
-## 🤝 Integration Guides
+## Integration Guides
 
 ### n8n Integration
 
@@ -277,7 +277,7 @@ ZAPIER_WEBHOOK_URL=https://hooks.zapier.com/hooks/catch/your-id
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Backend tests
@@ -291,7 +291,7 @@ npm test
 
 ---
 
-## 📊 API Documentation
+## API Documentation
 
 Once the backend is running, visit:
 - **Swagger UI**: http://localhost:8000/api/docs
@@ -310,7 +310,7 @@ Once the backend is running, visit:
 
 ---
 
-## 🚀 Deployment
+## Deployment
 
 ### Production Deployment
 
@@ -329,13 +329,13 @@ Once the backend is running, visit:
 
 ---
 
-## 📝 License
+## License
 
 MIT License - see LICENSE file for details
 
 ---
 
-## 👤 Author
+## Author
 
 **Sahil Kumar Sharma**
 - GitHub: [@sharmaasahill](https://github.com/sharmaasahill)
@@ -343,7 +343,7 @@ MIT License - see LICENSE file for details
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - CrewAI for agent orchestration
 - LangChain for LLM integration
@@ -352,11 +352,11 @@ MIT License - see LICENSE file for details
 
 ---
 
-## 📮 Support
+## Support
 
-For support, email sharmaasahill or open an issue on GitHub.
+For support, email i.sahilkrsharma@gmail.com or open an issue on GitHub.
 
 ---
 
-**Built with ❤️ using AI and Automation**
+**Built using AI and Automation**
 
