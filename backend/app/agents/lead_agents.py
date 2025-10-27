@@ -2,7 +2,7 @@
 AI Agents for Lead Qualification Workflow
 """
 from crewai import Agent, Task, Crew
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from app.core.config import settings
 from typing import Dict, Any
 
@@ -13,10 +13,10 @@ class LeadQualificationCrew:
     """
     
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
-            openai_api_key=settings.OPENAI_API_KEY
+            groq_api_key=settings.GROQ_API_KEY
         )
     
     def create_agents(self):
@@ -197,10 +197,10 @@ class QuickLeadScorer:
     """
     
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
-            openai_api_key=settings.OPENAI_API_KEY
+            groq_api_key=settings.GROQ_API_KEY
         )
     
     def score_lead(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -209,36 +209,41 @@ class QuickLeadScorer:
         prompt = f"""You are a lead qualification expert. Analyze this lead and provide a structured assessment.
 
 Lead Information:
-{lead_data}
+Name: {lead_data.get('name', 'N/A')}
+Email: {lead_data.get('email', 'N/A')}
+Company: {lead_data.get('company', 'N/A')}
+Phone: {lead_data.get('phone', 'N/A')}
+Message: {lead_data.get('message', 'N/A')}
 
-Provide a JSON response with:
-1. lead_score (0-100)
-2. qualification (High/Medium/Low)
-3. reasoning (brief explanation)
-4. recommended_action (what should sales do next)
-5. priority (urgent/high/medium/low)
+Analyze this lead and provide:
+1. A lead score from 0-100
+2. Qualification level (High/Medium/Low)
+3. Brief reasoning for your assessment
+4. Recommended next action for sales team
+5. Priority level (urgent/high/medium/low)
 
-Response format:
-{{
-    "lead_score": 85,
-    "qualification": "High",
-    "reasoning": "Strong company fit, clear budget, urgent timeline",
-    "recommended_action": "Schedule demo call within 24 hours",
-    "priority": "urgent"
-}}
-"""
+Be specific and actionable in your response."""
         
         try:
-            response = self.llm.invoke(prompt)
-            # In production, parse the JSON response properly
+            from langchain_core.messages import HumanMessage
+            
+            # Create message
+            messages = [HumanMessage(content=prompt)]
+            
+            # Call the LLM
+            response = self.llm.invoke(messages)
+            
             return {
                 "status": "completed",
                 "lead_data": lead_data,
-                "assessment": response.content
+                "assessment": response.content,
+                "ai_model": "Llama 3.3 70B (via Groq)"
             }
         except Exception as e:
+            import traceback
             return {
                 "status": "failed",
-                "error": str(e)
+                "error": str(e),
+                "traceback": traceback.format_exc()
             }
 

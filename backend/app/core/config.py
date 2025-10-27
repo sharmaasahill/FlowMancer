@@ -31,8 +31,11 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
     
-    # OpenAI
-    OPENAI_API_KEY: str
+    # OpenAI (Optional - using Groq instead)
+    OPENAI_API_KEY: str = ""
+    
+    # Groq (Free LLM API)
+    GROQ_API_KEY: str
     
     # n8n Integration
     N8N_API_URL: str = ""

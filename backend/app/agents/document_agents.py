@@ -2,7 +2,7 @@
 AI Agents for Document Processing Workflow
 """
 from crewai import Agent, Task, Crew
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from app.core.config import settings
 from typing import Dict, Any
 
@@ -13,10 +13,10 @@ class DocumentProcessingCrew:
     """
     
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
-            openai_api_key=settings.OPENAI_API_KEY
+            groq_api_key=settings.GROQ_API_KEY
         )
     
     def create_agents(self):
@@ -208,10 +208,10 @@ class QuickDocumentProcessor:
     """
     
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
-            openai_api_key=settings.OPENAI_API_KEY
+            groq_api_key=settings.GROQ_API_KEY
         )
     
     def process_document(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -223,40 +223,33 @@ Document:
 Type: {document_data.get('document_type', 'Unknown')}
 Content: {document_data.get('file_content', 'N/A')[:1000]}
 
-Provide a JSON response with:
-1. document_type (invoice/contract/receipt/other)
-2. extracted_data (key-value pairs of extracted information)
-3. validation_status (valid/invalid/needs_review)
-4. validation_errors (array of issues found)
-5. approval_required (bool)
-6. next_steps (array of actions)
+Analyze and provide:
+1. Document type classification (invoice/contract/receipt/other)
+2. Key data extracted from the document
+3. Validation status (valid/invalid/needs_review)
+4. Any validation errors or issues found
+5. Does this need approval?
+6. Recommended next steps
 
-Response format:
-{{
-    "document_type": "invoice",
-    "extracted_data": {{
-        "invoice_number": "INV-001",
-        "date": "2024-01-15",
-        "vendor": "Acme Corp",
-        "total_amount": 1500.00
-    }},
-    "validation_status": "valid",
-    "validation_errors": [],
-    "approval_required": true,
-    "next_steps": ["send_for_approval", "update_accounting_system"]
-}}
-"""
+Be specific and actionable in your response."""
         
         try:
-            response = self.llm.invoke(prompt)
+            from langchain_core.messages import HumanMessage
+            
+            messages = [HumanMessage(content=prompt)]
+            response = self.llm.invoke(messages)
+            
             return {
                 "status": "completed",
                 "document_data": document_data,
-                "result": response.content
+                "result": response.content,
+                "ai_model": "Llama 3.3 70B (via Groq)"
             }
         except Exception as e:
+            import traceback
             return {
                 "status": "failed",
-                "error": str(e)
+                "error": str(e),
+                "traceback": traceback.format_exc()
             }
 

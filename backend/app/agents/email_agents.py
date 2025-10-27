@@ -2,7 +2,7 @@
 AI Agents for Email Processing Workflow
 """
 from crewai import Agent, Task, Crew
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from app.core.config import settings
 from typing import Dict, Any
 
@@ -13,10 +13,10 @@ class EmailProcessingCrew:
     """
     
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
-            openai_api_key=settings.OPENAI_API_KEY
+            groq_api_key=settings.GROQ_API_KEY
         )
     
     def create_agents(self):
@@ -188,10 +188,10 @@ class QuickEmailProcessor:
     """
     
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
-            openai_api_key=settings.OPENAI_API_KEY
+            groq_api_key=settings.GROQ_API_KEY
         )
     
     def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -204,37 +204,34 @@ From: {email_data.get('from_email', 'Unknown')}
 Subject: {email_data.get('subject', 'No Subject')}
 Body: {email_data.get('body', '')}
 
-Provide a JSON response with:
-1. category (support/sales/partnership/spam)
-2. priority (urgent/high/medium/low)
-3. sentiment (positive/neutral/negative)
-4. draft_response (professional email reply)
-5. action_required (bool)
-6. assigned_to (which team)
-7. tags (array of relevant tags)
+Analyze and provide:
+1. Category (support/sales/partnership/spam)
+2. Priority level (urgent/high/medium/low)
+3. Sentiment (positive/neutral/negative)
+4. Draft a professional reply
+5. Is action required?
+6. Which team should handle this?
+7. Relevant tags
 
-Response format:
-{{
-    "category": "support",
-    "priority": "high",
-    "sentiment": "negative",
-    "draft_response": "Dear [Name], Thank you for reaching out...",
-    "action_required": true,
-    "assigned_to": "support_team",
-    "tags": ["technical_issue", "urgent"]
-}}
-"""
+Be specific and actionable in your response."""
         
         try:
-            response = self.llm.invoke(prompt)
+            from langchain_core.messages import HumanMessage
+            
+            messages = [HumanMessage(content=prompt)]
+            response = self.llm.invoke(messages)
+            
             return {
                 "status": "completed",
                 "email_data": email_data,
-                "result": response.content
+                "result": response.content,
+                "ai_model": "Llama 3.3 70B (via Groq)"
             }
         except Exception as e:
+            import traceback
             return {
                 "status": "failed",
-                "error": str(e)
+                "error": str(e),
+                "traceback": traceback.format_exc()
             }
 
