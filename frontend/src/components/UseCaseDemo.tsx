@@ -28,10 +28,19 @@ export default function UseCaseDemo() {
 
     try {
       const response = await useCasesApi.qualifyLead(leadData);
-      setResult(response.data);
+      const apiData = response.data;
+      
+      // Extract only the data we need for display
+      setResult({
+        status: apiData.result?.status || apiData.status || 'completed',
+        assessment: apiData.result?.assessment || apiData.assessment || '',
+        ai_model: apiData.result?.ai_model || apiData.ai_model || '',
+        error: apiData.result?.error || apiData.error || '',
+        message: 'Lead qualified successfully'
+      });
     } catch (error) {
       console.error('Error:', error);
-      setResult({ status: 'error', message: 'Failed to process lead' });
+      setResult({ status: 'error', message: 'Failed to process lead', error: String(error) });
     } finally {
       setLoading(false);
     }
@@ -52,10 +61,19 @@ export default function UseCaseDemo() {
 
     try {
       const response = await useCasesApi.processEmail(emailData);
-      setResult(response.data);
+      const apiData = response.data;
+      
+      // Extract only the data we need for display
+      setResult({
+        status: apiData.result?.status || apiData.status || 'completed',
+        result: apiData.result?.result || apiData.result || '',
+        ai_model: apiData.result?.ai_model || apiData.ai_model || '',
+        error: apiData.result?.error || apiData.error || '',
+        message: 'Email processed successfully'
+      });
     } catch (error) {
       console.error('Error:', error);
-      setResult({ status: 'error', message: 'Failed to process email' });
+      setResult({ status: 'error', message: 'Failed to process email', error: String(error) });
     } finally {
       setLoading(false);
     }
@@ -75,10 +93,19 @@ export default function UseCaseDemo() {
 
     try {
       const response = await useCasesApi.processDocument(documentData);
-      setResult(response.data);
+      const apiData = response.data;
+      
+      // Extract only the data we need for display
+      setResult({
+        status: apiData.result?.status || apiData.status || 'completed',
+        result: apiData.result?.result || apiData.result || '',
+        ai_model: apiData.result?.ai_model || apiData.ai_model || '',
+        error: apiData.result?.error || apiData.error || '',
+        message: 'Document processed successfully'
+      });
     } catch (error) {
       console.error('Error:', error);
-      setResult({ status: 'error', message: 'Failed to process document' });
+      setResult({ status: 'error', message: 'Failed to process document', error: String(error) });
     } finally {
       setLoading(false);
     }
@@ -293,7 +320,7 @@ export default function UseCaseDemo() {
         </div>
 
         {/* Results */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 max-h-[600px] overflow-y-auto">
           <h2 className="text-xl font-bold mb-4">AI Analysis Result</h2>
           {loading ? (
             <div className="flex items-center justify-center h-64">
@@ -301,24 +328,52 @@ export default function UseCaseDemo() {
             </div>
           ) : result ? (
             <div className="space-y-4">
+              {/* Status Badge */}
               <div
                 className={`p-4 rounded-lg ${
-                  result.status === 'success'
+                  result.status === 'completed' || result.status === 'success'
                     ? 'bg-green-50 border border-green-200'
                     : 'bg-red-50 border border-red-200'
                 }`}
               >
                 <p className="font-semibold">
-                  Status: {result.status === 'success' ? '✅ Success' : '❌ Error'}
+                  Status: {result.status === 'completed' || result.status === 'success' ? '✅ Success' : '❌ Error'}
                 </p>
                 {result.message && <p className="text-sm mt-1">{result.message}</p>}
               </div>
-              
-              {result.result && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <pre className="text-sm overflow-auto whitespace-pre-wrap">
-                    {JSON.stringify(result.result, null, 2)}
-                  </pre>
+
+              {/* AI Assessment - Formatted */}
+              {result.assessment && (
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <h3 className="font-bold text-blue-900 mb-3">🤖 AI Analysis</h3>
+                  <div className="prose prose-sm max-w-none text-gray-800 whitespace-pre-line">
+                    {typeof result.assessment === 'string' ? result.assessment : JSON.stringify(result.assessment, null, 2)}
+                  </div>
+                </div>
+              )}
+
+              {/* Email/Document Result */}
+              {result.result && !result.assessment && (
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <h3 className="font-bold text-blue-900 mb-3">🤖 AI Analysis</h3>
+                  <div className="prose prose-sm max-w-none text-gray-800 whitespace-pre-line">
+                    {typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2)}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Model Info */}
+              {result.ai_model && (
+                <div className="text-xs text-gray-500 text-center pt-2 border-t">
+                  Powered by {result.ai_model}
+                </div>
+              )}
+
+              {/* Error Details */}
+              {result.error && (
+                <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                  <h3 className="font-bold text-red-900 mb-2">Error Details</h3>
+                  <p className="text-sm text-red-700">{result.error}</p>
                 </div>
               )}
             </div>
