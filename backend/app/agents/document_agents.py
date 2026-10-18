@@ -2,8 +2,7 @@
 AI Agents for Document Processing Workflow
 """
 from crewai import Agent, Task, Crew
-from langchain_groq import ChatGroq
-from app.core.config import settings
+from app.core.llm import get_llm, get_crew_llm, ask, model_label
 from typing import Dict, Any
 
 
@@ -13,11 +12,7 @@ class DocumentProcessingCrew:
     """
     
     def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            groq_api_key=settings.GROQ_API_KEY
-        )
+        self.llm = get_crew_llm()
     
     def create_agents(self):
         """Create specialized agents for document processing"""
@@ -30,7 +25,7 @@ class DocumentProcessingCrew:
             You can quickly identify invoices, contracts, receipts, purchase orders, and more. 
             You understand document structure and know what information is important.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -42,7 +37,7 @@ class DocumentProcessingCrew:
             from unstructured documents. You can find dates, amounts, company names, line items, 
             and other key data points even when documents are poorly formatted.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -54,7 +49,7 @@ class DocumentProcessingCrew:
             consistency, validate calculations, verify required fields, and flag potential errors. 
             You prevent costly mistakes before they enter systems.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -66,7 +61,7 @@ class DocumentProcessingCrew:
             You understand which documents need executive approval, which can be auto-processed, 
             and what happens when validation fails.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -178,7 +173,7 @@ class DocumentProcessingCrew:
             crew = Crew(
                 agents=list(agents),
                 tasks=tasks,
-                verbose=True
+                verbose=False
             )
             
             # Execute the crew workflow
@@ -190,7 +185,8 @@ class DocumentProcessingCrew:
                 "document_data": document_data,
                 "processing_result": str(result),
                 "agents_involved": [agent.role for agent in agents],
-                "tasks_completed": len(tasks)
+                "tasks_completed": len(tasks),
+                "ai_model": model_label()
             }
             
         except Exception as e:
@@ -208,11 +204,7 @@ class QuickDocumentProcessor:
     """
     
     def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            groq_api_key=settings.GROQ_API_KEY
-        )
+        self.llm = get_llm()
     
     def process_document(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
         """Quick document processing using single LLM call"""
@@ -234,16 +226,13 @@ Analyze and provide:
 Be specific and actionable in your response."""
         
         try:
-            from langchain_core.messages import HumanMessage
-            
-            messages = [HumanMessage(content=prompt)]
-            response = self.llm.invoke(messages)
+            response_text = ask(self.llm, prompt)
             
             return {
                 "status": "completed",
                 "document_data": document_data,
-                "result": response.content,
-                "ai_model": "Llama 3.3 70B (via Groq)"
+                "result": response_text,
+                "ai_model": model_label()
             }
         except Exception as e:
             import traceback

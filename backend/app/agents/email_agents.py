@@ -2,8 +2,7 @@
 AI Agents for Email Processing Workflow
 """
 from crewai import Agent, Task, Crew
-from langchain_groq import ChatGroq
-from app.core.config import settings
+from app.core.llm import get_llm, get_crew_llm, ask, model_label
 from typing import Dict, Any
 
 
@@ -13,11 +12,7 @@ class EmailProcessingCrew:
     """
     
     def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            groq_api_key=settings.GROQ_API_KEY
-        )
+        self.llm = get_crew_llm()
     
     def create_agents(self):
         """Create specialized agents for email processing"""
@@ -30,7 +25,7 @@ class EmailProcessingCrew:
             whether an email is a support request, sales inquiry, partnership opportunity, or spam. 
             You understand urgency levels and can spot VIP senders.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -42,7 +37,7 @@ class EmailProcessingCrew:
             You can detect frustration, satisfaction, urgency, or casual inquiry from email content. 
             Your analysis helps prioritize responses and choose appropriate tone.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -54,7 +49,7 @@ class EmailProcessingCrew:
             and empathetic email responses that address the sender's needs. You adapt your tone 
             based on the situation and always maintain brand voice.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -66,7 +61,7 @@ class EmailProcessingCrew:
             You can identify when to escalate, who should handle what, and what follow-up is needed. 
             You ensure nothing falls through the cracks.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -158,7 +153,7 @@ class EmailProcessingCrew:
             crew = Crew(
                 agents=list(agents),
                 tasks=tasks,
-                verbose=True
+                verbose=False
             )
             
             # Execute the crew workflow
@@ -170,7 +165,8 @@ class EmailProcessingCrew:
                 "email_data": email_data,
                 "processing_result": str(result),
                 "agents_involved": [agent.role for agent in agents],
-                "tasks_completed": len(tasks)
+                "tasks_completed": len(tasks),
+                "ai_model": model_label()
             }
             
         except Exception as e:
@@ -188,11 +184,7 @@ class QuickEmailProcessor:
     """
     
     def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            groq_api_key=settings.GROQ_API_KEY
-        )
+        self.llm = get_llm()
     
     def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
         """Quick email processing using single LLM call"""
@@ -216,16 +208,13 @@ Analyze and provide:
 Be specific and actionable in your response."""
         
         try:
-            from langchain_core.messages import HumanMessage
-            
-            messages = [HumanMessage(content=prompt)]
-            response = self.llm.invoke(messages)
+            response_text = ask(self.llm, prompt)
             
             return {
                 "status": "completed",
                 "email_data": email_data,
-                "result": response.content,
-                "ai_model": "Llama 3.3 70B (via Groq)"
+                "result": response_text,
+                "ai_model": model_label()
             }
         except Exception as e:
             import traceback

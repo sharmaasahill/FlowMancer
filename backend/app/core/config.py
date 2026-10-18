@@ -28,14 +28,16 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
     
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    # AI Provider: "ollama" (free, local) or "openai"
+    AI_PROVIDER: str = "ollama"
     
-    # OpenAI (Optional - using Groq instead)
+    # Ollama
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3.2"
+    
+    # OpenAI (only needed if AI_PROVIDER=openai)
     OPENAI_API_KEY: str = ""
-    
-    # Groq (Free LLM API)
-    GROQ_API_KEY: str
+    OPENAI_MODEL: str = "gpt-4o-mini"
     
     # n8n Integration
     N8N_API_URL: str = ""

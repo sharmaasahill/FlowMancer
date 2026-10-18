@@ -2,8 +2,7 @@
 AI Agents for Lead Qualification Workflow
 """
 from crewai import Agent, Task, Crew
-from langchain_groq import ChatGroq
-from app.core.config import settings
+from app.core.llm import get_llm, get_crew_llm, ask, model_label
 from typing import Dict, Any
 
 
@@ -13,11 +12,7 @@ class LeadQualificationCrew:
     """
     
     def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            groq_api_key=settings.GROQ_API_KEY
-        )
+        self.llm = get_crew_llm()
     
     def create_agents(self):
         """Create specialized agents for lead qualification"""
@@ -30,7 +25,7 @@ class LeadQualificationCrew:
             key signals like company size, industry, budget indicators, and urgency from limited information. 
             You have years of experience in B2B sales and know what makes a high-quality lead.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -42,7 +37,7 @@ class LeadQualificationCrew:
             You use various data sources to discover company size, revenue, recent news, technology stack, 
             and decision-maker contacts. You always provide accurate and up-to-date information.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -54,7 +49,7 @@ class LeadQualificationCrew:
             firmographic data, behavioral signals, intent indicators, and fit with ideal customer profile. 
             Your scoring methodology has been proven to increase conversion rates by 40%.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -66,7 +61,7 @@ class LeadQualificationCrew:
             each rep's strengths, current workload, industry expertise, and territory. You ensure leads 
             are routed to the right person at the right time for maximum conversion.""",
             llm=self.llm,
-            verbose=True,
+            verbose=False,
             allow_delegation=False
         )
         
@@ -166,7 +161,7 @@ class LeadQualificationCrew:
             crew = Crew(
                 agents=list(agents),
                 tasks=tasks,
-                verbose=True
+                verbose=False
             )
             
             # Execute the crew workflow
@@ -178,7 +173,8 @@ class LeadQualificationCrew:
                 "lead_data": lead_data,
                 "qualification_result": str(result),
                 "agents_involved": [agent.role for agent in agents],
-                "tasks_completed": len(tasks)
+                "tasks_completed": len(tasks),
+                "ai_model": model_label()
             }
             
         except Exception as e:
@@ -197,11 +193,7 @@ class QuickLeadScorer:
     """
     
     def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            groq_api_key=settings.GROQ_API_KEY
-        )
+        self.llm = get_llm()
     
     def score_lead(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Quick lead scoring using single LLM call"""
@@ -225,19 +217,13 @@ Analyze this lead and provide:
 Be specific and actionable in your response."""
         
         try:
-            from langchain_core.messages import HumanMessage
-            
-            # Create message
-            messages = [HumanMessage(content=prompt)]
-            
-            # Call the LLM
-            response = self.llm.invoke(messages)
+            response_text = ask(self.llm, prompt)
             
             return {
                 "status": "completed",
                 "lead_data": lead_data,
-                "assessment": response.content,
-                "ai_model": "Llama 3.3 70B (via Groq)"
+                "assessment": response_text,
+                "ai_model": model_label()
             }
         except Exception as e:
             import traceback

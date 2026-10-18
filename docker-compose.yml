@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
+  # PostgreSQL database (local dev outside Docker uses SQLite instead)
   postgres:
     image: postgres:15-alpine
     container_name: flowmancer-db
@@ -19,44 +17,26 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis
-  redis:
-    image: redis:7-alpine
-    container_name: flowmancer-redis
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: flowmancer-backend
+    # Secrets, AI provider, model, etc. come from backend/.env
     env_file:
       - ./backend/.env
+    # These override .env so the container talks to the right services
     environment:
-      - APP_NAME=FlowMancer
-      - DEBUG=True
-      - SECRET_KEY=your-secret-key-change-in-production
-      - JWT_SECRET_KEY=your-jwt-secret-change-in-production
       - DATABASE_URL=postgresql://flowmancer:flowmancer123@postgres:5432/flowmancer_db
-      - REDIS_URL=redis://redis:6379/0
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - N8N_API_URL=${N8N_API_URL}
-      - N8N_API_KEY=${N8N_API_KEY}
-      - ZAPIER_WEBHOOK_URL=${ZAPIER_WEBHOOK_URL}
+      # Ollama runs on your machine, not in Docker
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     volumes:
       - ./backend/app:/app/app
@@ -85,4 +65,3 @@ volumes:
 networks:
   default:
     name: flowmancer-network
-

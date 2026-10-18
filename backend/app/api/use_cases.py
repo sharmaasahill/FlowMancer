@@ -1,154 +1,93 @@
 """
-API endpoints for specific use cases
-Simplified endpoints for demonstration purposes
+API endpoints for the three built-in use cases.
+
+Each endpoint supports two modes via the `mode` query parameter:
+- quick (default): one LLM call, takes seconds
+- crew: full CrewAI multi-agent pipeline (4 agents in sequence), takes minutes on a local model
+
+Endpoints are plain `def` so FastAPI runs the blocking LLM calls in a worker
+thread instead of freezing the event loop.
 """
-from fastapi import APIRouter, Depends, BackgroundTasks
-from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.schemas import (
-    LeadInput,
-    LeadQualificationResult,
-    EmailInput,
-    EmailProcessingResult,
-    DocumentInput,
-    DocumentProcessingResult
-)
+from typing import Literal
+from fastapi import APIRouter
+from app.schemas import LeadInput, EmailInput, DocumentInput
 from app.agents import (
     QuickLeadScorer,
     QuickEmailProcessor,
-    QuickDocumentProcessor
+    QuickDocumentProcessor,
+    LeadQualificationCrew,
+    EmailProcessingCrew,
+    DocumentProcessingCrew,
 )
 
 router = APIRouter(prefix="/use-cases", tags=["use-cases"])
 
+Mode = Literal["quick", "crew"]
+
+
+def _wrap(key: str, data: dict, result: dict, mode: str, label: str) -> dict:
+    """Shape every use-case response the same way."""
+    ok = result.get("status") == "completed"
+    return {
+        "status": "success" if ok else "error",
+        "mode": mode,
+        key: data,
+        "result": result,
+        "message": f"{label} {'processed successfully' if ok else 'failed'}",
+    }
+
 
 @router.post("/qualify-lead", response_model=dict)
-async def qualify_lead(
-    lead: LeadInput,
-    db: Session = Depends(get_db)
-):
-    """
-    Use Case 1: Intelligent Lead Qualification
-    
-    Analyzes incoming leads, scores them, and provides recommendations
-    """
-    try:
-        # Convert lead to dict
-        lead_data = lead.dict()
-        
-        # Process with AI agent
-        scorer = QuickLeadScorer()
-        result = scorer.score_lead(lead_data)
-        
-        return {
-            "status": "success",
-            "lead": lead_data,
-            "result": result,
-            "message": "Lead qualified successfully"
-        }
-        
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+def qualify_lead(lead: LeadInput, mode: Mode = "quick"):
+    """Use Case 1: score a lead and recommend next steps."""
+    data = lead.model_dump()
+    if mode == "crew":
+        result = LeadQualificationCrew().process_lead(data)
+    else:
+        result = QuickLeadScorer().score_lead(data)
+    return _wrap("lead", data, result, mode, "Lead")
 
 
 @router.post("/process-email", response_model=dict)
-async def process_email(
-    email: EmailInput,
-    db: Session = Depends(get_db)
-):
-    """
-    Use Case 2: Smart Email Processing
-    
-    Categorizes emails, analyzes sentiment, and drafts responses
-    """
-    try:
-        # Convert email to dict
-        email_data = email.dict()
-        
-        # Process with AI agent
-        processor = QuickEmailProcessor()
-        result = processor.process_email(email_data)
-        
-        return {
-            "status": "success",
-            "email": email_data,
-            "result": result,
-            "message": "Email processed successfully"
-        }
-        
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+def process_email(email: EmailInput, mode: Mode = "quick"):
+    """Use Case 2: categorize an email, analyze sentiment, draft a reply."""
+    data = email.model_dump()
+    if mode == "crew":
+        result = EmailProcessingCrew().process_email(data)
+    else:
+        result = QuickEmailProcessor().process_email(data)
+    return _wrap("email", data, result, mode, "Email")
 
 
 @router.post("/process-document", response_model=dict)
-async def process_document(
-    document: DocumentInput,
-    db: Session = Depends(get_db)
-):
-    """
-    Use Case 3: Document Intelligence & Automation
-    
-    Extracts data from documents, validates, and routes for approval
-    """
-    try:
-        # Convert document to dict
-        document_data = document.dict()
-        
-        # Process with AI agent
-        processor = QuickDocumentProcessor()
-        result = processor.process_document(document_data)
-        
-        return {
-            "status": "success",
-            "document": document_data,
-            "result": result,
-            "message": "Document processed successfully"
-        }
-        
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+def process_document(document: DocumentInput, mode: Mode = "quick"):
+    """Use Case 3: classify a document, extract data, validate, route."""
+    data = document.model_dump()
+    if mode == "crew":
+        result = DocumentProcessingCrew().process_document(data)
+    else:
+        result = QuickDocumentProcessor().process_document(data)
+    return _wrap("document", data, result, mode, "Document")
 
 
 @router.post("/demo/lead-batch")
-async def process_lead_batch(
-    leads: list[LeadInput],
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    """
-    Demo endpoint: Process multiple leads in batch
-    """
-    results = []
+def process_lead_batch(leads: list[LeadInput]):
+    """Score several leads in one request (quick mode)."""
     scorer = QuickLeadScorer()
-    
+    results = []
     for lead in leads:
-        try:
-            result = scorer.score_lead(lead.dict())
-            results.append({
-                "lead": lead.dict(),
-                "result": result,
-                "status": "success"
-            })
-        except Exception as e:
-            results.append({
-                "lead": lead.dict(),
-                "error": str(e),
-                "status": "failed"
-            })
-    
+        data = lead.model_dump()
+        result = scorer.score_lead(data)
+        results.append({
+            "lead": data,
+            "result": result,
+            "status": "success" if result.get("status") == "completed" else "failed",
+        })
+
+    processed = sum(r["status"] == "success" for r in results)
     return {
         "total": len(leads),
-        "processed": len([r for r in results if r["status"] == "success"]),
-        "failed": len([r for r in results if r["status"] == "failed"]),
-        "results": results
+        "processed": processed,
+        "failed": len(leads) - processed,
+        "results": results,
     }
-
