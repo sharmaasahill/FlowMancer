@@ -1,93 +1,94 @@
 """
-API endpoints for the three built-in use cases.
+Use-case endpoints.
 
-Each endpoint supports two modes via the `mode` query parameter:
-- quick (default): one LLM call, takes seconds
-- crew: full CrewAI multi-agent pipeline (4 agents in sequence), takes minutes on a local model
+Synchronous (wait for the result):
+  POST /api/use-cases/qualify-lead | process-email | process-document   ?mode=quick|crew
 
-Endpoints are plain `def` so FastAPI runs the blocking LLM calls in a worker
-thread instead of freezing the event loop.
+Background jobs (return immediately; follow progress at /api/runs/{id}/events):
+  POST /api/use-cases/jobs/{kind}            kind = lead | email | document
+  POST /api/use-cases/process-document/upload  (multipart file upload, runs in background)
+
+Sync endpoints are plain `def`, so FastAPI runs them in a worker thread and the
+server stays responsive while the model works.
 """
-from typing import Literal
-from fastapi import APIRouter
-from app.schemas import LeadInput, EmailInput, DocumentInput
-from app.agents import (
-    QuickLeadScorer,
-    QuickEmailProcessor,
-    QuickDocumentProcessor,
-    LeadQualificationCrew,
-    EmailProcessingCrew,
-    DocumentProcessingCrew,
-)
+from typing import List, Literal
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.schemas import DocumentInput, EmailInput, LeadInput, RunResponse
+from app.services import runs as runs_service
+from app.services.extract import ExtractionError, extract_text
 
 router = APIRouter(prefix="/use-cases", tags=["use-cases"])
 
 Mode = Literal["quick", "crew"]
+Kind = Literal["lead", "email", "document"]
+INPUTS = {"lead": LeadInput, "email": EmailInput, "document": DocumentInput}
 
 
-def _wrap(key: str, data: dict, result: dict, mode: str, label: str) -> dict:
-    """Shape every use-case response the same way."""
-    ok = result.get("status") == "completed"
-    return {
-        "status": "success" if ok else "error",
-        "mode": mode,
-        key: data,
-        "result": result,
-        "message": f"{label} {'processed successfully' if ok else 'failed'}",
-    }
+def _run(db: Session, kind: str, data, mode: str) -> RunResponse:
+    run = runs_service.run_now(db, kind, data.model_dump(mode="json"), mode)
+    return RunResponse.model_validate(run)
 
 
-@router.post("/qualify-lead", response_model=dict)
-def qualify_lead(lead: LeadInput, mode: Mode = "quick"):
-    """Use Case 1: score a lead and recommend next steps."""
-    data = lead.model_dump()
-    if mode == "crew":
-        result = LeadQualificationCrew().process_lead(data)
-    else:
-        result = QuickLeadScorer().score_lead(data)
-    return _wrap("lead", data, result, mode, "Lead")
+@router.post("/qualify-lead", response_model=RunResponse)
+def qualify_lead(lead: LeadInput, mode: Mode = "quick", db: Session = Depends(get_db)):
+    """Score a lead using real web research and recommend next steps."""
+    return _run(db, "lead", lead, mode)
 
 
-@router.post("/process-email", response_model=dict)
-def process_email(email: EmailInput, mode: Mode = "quick"):
-    """Use Case 2: categorize an email, analyze sentiment, draft a reply."""
-    data = email.model_dump()
-    if mode == "crew":
-        result = EmailProcessingCrew().process_email(data)
-    else:
-        result = QuickEmailProcessor().process_email(data)
-    return _wrap("email", data, result, mode, "Email")
+@router.post("/process-email", response_model=RunResponse)
+def process_email(email: EmailInput, mode: Mode = "quick", db: Session = Depends(get_db)):
+    """Categorize an email, judge sentiment and draft a reply grounded in the knowledge base."""
+    return _run(db, "email", email, mode)
 
 
-@router.post("/process-document", response_model=dict)
-def process_document(document: DocumentInput, mode: Mode = "quick"):
-    """Use Case 3: classify a document, extract data, validate, route."""
-    data = document.model_dump()
-    if mode == "crew":
-        result = DocumentProcessingCrew().process_document(data)
-    else:
-        result = QuickDocumentProcessor().process_document(data)
-    return _wrap("document", data, result, mode, "Document")
+@router.post("/process-document", response_model=RunResponse)
+def process_document(document: DocumentInput, mode: Mode = "quick", db: Session = Depends(get_db)):
+    """Classify a document, extract its data, validate it and decide approval."""
+    return _run(db, "document", document, mode)
+
+
+@router.post("/jobs/{kind}", response_model=RunResponse, status_code=202)
+def start_job(kind: Kind, payload: dict, mode: Mode = "quick", db: Session = Depends(get_db)):
+    """Start processing in the background. Poll /api/runs/{id} or stream /api/runs/{id}/events."""
+    try:
+        data = INPUTS[kind](**payload).model_dump(mode="json")
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    run = runs_service.run_in_background(db, kind, data, mode, source="ui")
+    return RunResponse.model_validate(run)
+
+
+@router.post("/process-document/upload", response_model=RunResponse, status_code=202)
+async def upload_document(
+    file: UploadFile = File(...),
+    document_type: str = Form("auto"),
+    mode: Mode = Form("quick"),
+    db: Session = Depends(get_db),
+):
+    """Upload a PDF/TXT/MD/CSV/HTML file and process it in the background."""
+    limit = settings.MAX_UPLOAD_MB * 1024 * 1024
+    data = await file.read(limit + 1)
+    if len(data) > limit:
+        raise HTTPException(status_code=413, detail=f"File larger than {settings.MAX_UPLOAD_MB} MB")
+    try:
+        text = extract_text(file.filename or "", data)
+    except ExtractionError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    doc = DocumentInput(document_type=document_type, file_name=file.filename, file_content=text[:200000])
+    run = runs_service.run_in_background(db, "document", doc.model_dump(mode="json"), mode, source="upload")
+    return RunResponse.model_validate(run)
 
 
 @router.post("/demo/lead-batch")
-def process_lead_batch(leads: list[LeadInput]):
-    """Score several leads in one request (quick mode)."""
-    scorer = QuickLeadScorer()
-    results = []
-    for lead in leads:
-        data = lead.model_dump()
-        result = scorer.score_lead(data)
-        results.append({
-            "lead": data,
-            "result": result,
-            "status": "success" if result.get("status") == "completed" else "failed",
-        })
-
-    processed = sum(r["status"] == "success" for r in results)
-    return {
-        "total": len(leads),
-        "processed": processed,
-        "failed": len(leads) - processed,
-        "results": results,
-    }
+def process_lead_batch(leads: List[LeadInput], db: Session = Depends(get_db)):
+    """Queue several leads at once (quick mode). Returns the run ids."""
+    if len(leads) > 50:
+        raise HTTPException(status_code=422, detail="At most 50 leads per batch")
+    run_ids = [runs_service.run_in_background(db, "lead", l.model_dump(mode="json"), "quick", "api").id
+               for l in leads]
+    return {"queued": len(run_ids), "run_ids": run_ids}

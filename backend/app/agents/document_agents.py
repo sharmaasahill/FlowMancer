@@ -1,244 +1,89 @@
 """
-AI Agents for Document Processing Workflow
+Document processing: prompts for quick mode and the 4-agent crew.
 """
-from crewai import Agent, Task, Crew
-from app.core.llm import get_llm, get_crew_llm, ask, model_label
-from typing import Dict, Any
+from typing import Dict, List
+
+from app.agents.base import CrewStep
+from app.core.config import settings
+
+MAX_DOC_CHARS = 12000
 
 
-class DocumentProcessingCrew:
-    """
-    Multi-agent system for intelligent document processing
-    """
-    
-    def __init__(self):
-        self.llm = get_crew_llm()
-    
-    def create_agents(self):
-        """Create specialized agents for document processing"""
-        
-        # Agent 1: Document Classifier
-        document_classifier = Agent(
+def describe_document(doc: Dict) -> str:
+    content = doc.get("file_content") or ""
+    truncated = len(content) > MAX_DOC_CHARS
+    hint = doc.get("document_type") or "auto"
+    name = doc.get("file_name")
+    header = f"Declared type: {hint}" + (f"\nFile: {name}" if name else "")
+    note = "\n[Document truncated]" if truncated else ""
+    return f"{header}\nContent:\n{content[:MAX_DOC_CHARS]}{note}"
+
+
+def approval_policy() -> str:
+    return (
+        f"Approval policy: any document with a total of {settings.DOCUMENT_APPROVAL_AMOUNT:g} or more, "
+        "every contract, and anything with validation issues needs approval. Finance approves invoices "
+        "and receipts; Legal approves contracts."
+    )
+
+
+def quick_prompt(doc: Dict, knowledge: str | None) -> str:
+    parts = [
+        "You are a document processing expert. Classify this document, extract its key data exactly as written, "
+        "and note any problems you see in it.",
+        describe_document(doc),
+        "Only extract values that appear in the document; use null for anything that isn't there.",
+    ]
+    if knowledge:
+        parts.append(knowledge)
+    return "\n\n".join(parts)
+
+
+def crew_steps(doc: Dict, knowledge: str | None) -> List[CrewStep]:
+    kb = f"\n\n{knowledge}" if knowledge else ""
+    return [
+        CrewStep(
+            name="Document Classifier",
             role="Document Classifier",
-            goal="Identify document type and extract key metadata",
-            backstory="""You are an expert at recognizing different types of business documents. 
-            You can quickly identify invoices, contracts, receipts, purchase orders, and more. 
-            You understand document structure and know what information is important.""",
-            llm=self.llm,
-            verbose=False,
-            allow_delegation=False
-        )
-        
-        # Agent 2: Data Extractor
-        data_extractor = Agent(
+            goal="Identify the document type",
+            backstory="You recognize invoices, receipts, contracts and purchase orders at a glance.",
+            description=f"Identify the document type and its quality.\n\n{describe_document(doc)}",
+            expected_output="Document type and quality assessment",
+        ),
+        CrewStep(
+            name="Data Extractor",
             role="Data Extraction Specialist",
-            goal="Extract structured data from documents with high accuracy",
-            backstory="""You are a data extraction expert who excels at pulling structured information 
-            from unstructured documents. You can find dates, amounts, company names, line items, 
-            and other key data points even when documents are poorly formatted.""",
-            llm=self.llm,
-            verbose=False,
-            allow_delegation=False
-        )
-        
-        # Agent 3: Validator
-        validator = Agent(
+            goal="Extract every key field accurately",
+            backstory="You pull structured data out of messy documents.",
+            description="Extract: parties, document number, dates, line items, subtotal, tax, total, "
+                        "currency, payment terms. Quote values exactly as they appear.",
+            expected_output="A list of extracted fields and values",
+        ),
+        CrewStep(
+            name="Validator",
             role="Document Validator",
-            goal="Validate extracted data against business rules and identify errors",
-            backstory="""You are a quality control expert who ensures data accuracy. You check for 
-            consistency, validate calculations, verify required fields, and flag potential errors. 
-            You prevent costly mistakes before they enter systems.""",
-            llm=self.llm,
-            verbose=False,
-            allow_delegation=False
-        )
-        
-        # Agent 4: Workflow Router
-        workflow_router = Agent(
+            goal="Find errors before they reach the books",
+            backstory="You check that totals add up and nothing required is missing.",
+            description="Validate the extracted data: required fields present, totals add up, dates valid. "
+                        "Status: valid, invalid or needs_review, with a list of issues.",
+            expected_output="Validation status and list of issues",
+        ),
+        CrewStep(
+            name="Workflow Router",
             role="Workflow Router",
-            goal="Determine approval requirements and next steps for document processing",
-            backstory="""You are a process expert who knows the approval chains and routing rules. 
-            You understand which documents need executive approval, which can be auto-processed, 
-            and what happens when validation fails.""",
-            llm=self.llm,
-            verbose=False,
-            allow_delegation=False
-        )
-        
-        return document_classifier, data_extractor, validator, workflow_router
-    
-    def create_tasks(self, document_data: Dict[str, Any], agents: tuple):
-        """Create tasks for the document processing workflow"""
-        
-        document_classifier, data_extractor, validator, workflow_router = agents
-        
-        # Task 1: Classify Document
-        classify_task = Task(
-            description=f"""Classify this document:
-            
-            Document Type: {document_data.get('document_type', 'Unknown')}
-            Content Sample: {document_data.get('file_content', 'N/A')[:500]}
-            
-            Identify:
-            - Exact document type (invoice/receipt/contract/PO/other)
-            - Document sub-category
-            - Confidence level of classification
-            - Document quality (good/poor/needs_review)
-            
-            Provide detailed classification.""",
-            agent=document_classifier,
-            expected_output="Document classification with type, confidence, and quality assessment"
-        )
-        
-        # Task 2: Extract Data
-        extract_task = Task(
-            description="""Extract all relevant data from this document:
-            
-            For Invoices extract:
-            - Invoice number, date, due date
-            - Vendor name and address
-            - Line items (description, quantity, price)
-            - Subtotal, tax, total amount
-            - Payment terms
-            
-            For Contracts extract:
-            - Contract number, effective date, expiration date
-            - Parties involved
-            - Key terms and obligations
-            - Payment terms
-            - Renewal clauses
-            
-            For Receipts extract:
-            - Date, merchant name
-            - Items purchased
-            - Total amount, payment method
-            - Tax information
-            
-            Provide structured extracted data.""",
-            agent=data_extractor,
-            expected_output="Structured data extracted from document with all key fields"
-        )
-        
-        # Task 3: Validate Data
-        validate_task = Task(
-            description="""Validate the extracted data:
-            
-            Check:
-            - Required fields are present
-            - Dates are valid and in correct format
-            - Amounts are calculated correctly
-            - Company names match known vendors
-            - No obvious errors or inconsistencies
-            
-            Flag:
-            - Missing required fields
-            - Calculation errors
-            - Unusual amounts or patterns
-            - Data quality issues
-            
-            Provide validation report with status and any errors.""",
-            agent=validator,
-            expected_output="Validation report with status (valid/invalid/needs_review) and list of any errors"
-        )
-        
-        # Task 4: Route Document
-        routing_task = Task(
-            description="""Based on the document type and validation results:
-            
-            Determine:
-            1. Does this need approval? (yes/no)
-            2. Who should approve it? (finance/executive/auto-approve)
-            3. What's the approval threshold? (amount-based rules)
-            4. What system should this be entered into? (accounting/ERP/archive)
-            5. What are the next steps?
-            6. Any notifications needed?
-            
-            Create a complete routing and action plan.""",
-            agent=workflow_router,
-            expected_output="Complete routing decision with approvals, system updates, and next steps"
-        )
-        
-        return [classify_task, extract_task, validate_task, routing_task]
-    
-    def process_document(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Process a document through the multi-agent workflow
-        """
-        try:
-            # Create agents and tasks
-            agents = self.create_agents()
-            tasks = self.create_tasks(document_data, agents)
-            
-            # Create crew and execute
-            crew = Crew(
-                agents=list(agents),
-                tasks=tasks,
-                verbose=False
-            )
-            
-            # Execute the crew workflow
-            result = crew.kickoff()
-            
-            # Parse and structure the results
-            return {
-                "status": "completed",
-                "document_data": document_data,
-                "processing_result": str(result),
-                "agents_involved": [agent.role for agent in agents],
-                "tasks_completed": len(tasks),
-                "ai_model": model_label()
-            }
-            
-        except Exception as e:
-            return {
-                "status": "failed",
-                "error": str(e),
-                "document_data": document_data
-            }
+            goal="Decide approval and next steps",
+            backstory="You know the company's approval chains.",
+            description=f"Decide if approval is needed, who approves, and next steps.\n\n{approval_policy()}{kb}",
+            # The final approval decision is re-applied in code from the same policy
+            expected_output="Approval decision, approver and next steps",
+        ),
+    ]
 
 
-# Simplified version for quick document processing
-class QuickDocumentProcessor:
-    """
-    Simplified document processor for faster processing
-    """
-    
-    def __init__(self):
-        self.llm = get_llm()
-    
-    def process_document(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Quick document processing using single LLM call"""
-        
-        prompt = f"""You are a document processing expert. Analyze this document and provide a structured response.
-
-Document:
-Type: {document_data.get('document_type', 'Unknown')}
-Content: {document_data.get('file_content', 'N/A')[:1000]}
-
-Analyze and provide:
-1. Document type classification (invoice/contract/receipt/other)
-2. Key data extracted from the document
-3. Validation status (valid/invalid/needs_review)
-4. Any validation errors or issues found
-5. Does this need approval?
-6. Recommended next steps
-
-Be specific and actionable in your response."""
-        
-        try:
-            response_text = ask(self.llm, prompt)
-            
-            return {
-                "status": "completed",
-                "document_data": document_data,
-                "result": response_text,
-                "ai_model": model_label()
-            }
-        except Exception as e:
-            import traceback
-            return {
-                "status": "failed",
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            }
-
+def structure_prompt(doc: Dict, crew_outputs: List[str]) -> str:
+    work = "\n\n".join(f"--- {name} ---\n{out}" for name, out in
+                       zip(["Classifier", "Extraction", "Validation", "Routing"], crew_outputs))
+    return (
+        "Convert the team's analysis into the required structured result.\n\n"
+        f"{describe_document(doc)}\n\nTeam analysis:\n{work}"
+    )

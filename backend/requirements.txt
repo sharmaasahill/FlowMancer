@@ -1,35 +1,31 @@
-# FastAPI and Server
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-python-multipart>=0.0.12
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-python-dotenv>=1.1.1
+# Pinned to the versions FlowMancer is tested with.
 
-# AI and Agent Framework
-crewai>=1.2.0
-langchain>=0.3.0
-langchain-openai>=0.2.0
-langchain-community>=0.3.0
+# API server
+fastapi==0.143.5
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+python-dotenv==1.2.4
+
+# Data & validation
+pydantic==2.12.5
+pydantic-settings==2.16.0
+email-validator==2.3.0
+sqlalchemy==2.1.5
+psycopg2-binary==2.9.13
+
+# AI
+crewai==1.15.28
+langchain-core==1.6.12
 langchain-ollama==1.1.0
-openai>=1.54.0
+langchain-openai==1.7.2
+openai==2.54.0
 
-# Database
-sqlalchemy>=2.0.35
-alembic>=1.13.3
-psycopg2-binary>=2.9.10
+# Research, knowledge base, documents
+ddgs==9.16.0
+chromadb==1.5.9
+pdfplumber==0.11.10
+httpx==0.28.1
 
-# HTTP clients and webhooks
-httpx>=0.27.0
-requests>=2.32.0
-
-# Data validation
-pydantic>=2.11.9
-pydantic-settings>=2.10.1
-
-# Utilities
-python-dateutil>=2.8.2
-pytz>=2023.3
-
-# Monitoring and logging
-loguru>=0.7.2
+# Reserved for authentication (stage 4)
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4

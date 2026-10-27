@@ -2,23 +2,40 @@
 FlowMancer - Main FastAPI Application
 AI-Powered Multi-Agent Workflow Orchestrator
 """
-from fastapi import FastAPI
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.api import approvals, executions, knowledge, runs, system, triggers, use_cases, workflows
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import workflows, executions, webhooks, use_cases
+from app.services import inbox
 
-# Create FastAPI app
+log = logging.getLogger("flowmancer")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    inbox.start_background_polling()
+    log.info("%s v%s started. Docs: /api/docs", settings.APP_NAME, settings.APP_VERSION)
+    yield
+    inbox.stop_background_polling()
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="AI-Powered Multi-Agent Workflow Orchestration Platform",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json"
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
 )
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -28,85 +45,29 @@ app.add_middleware(
 )
 
 
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_event():
-    """
-    Initialize application on startup
-    """
-    init_db()
-    print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} started!")
-    print(f"📚 API Documentation: http://{settings.HOST}:{settings.PORT}/api/docs")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Cleanup on shutdown
-    """
-    print(f"👋 {settings.APP_NAME} shutting down...")
-
-
-# Root endpoint
 @app.get("/")
-async def root():
-    """
-    Root endpoint - API information
-    """
+def root():
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "description": "AI-Powered Multi-Agent Workflow Orchestrator",
         "status": "running",
         "docs": "/api/docs",
-        "features": [
-            "Agentic AI with CrewAI",
-            "n8n Integration",
-            "Zapier Integration",
-            "Multi-Agent Workflows",
-            "Intelligent Automation"
-        ]
     }
 
 
-# Health check endpoint
 @app.get("/health")
-async def health_check():
-    """
-    Health check endpoint
-    """
-    return {
-        "status": "healthy",
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION
-    }
+def health_check():
+    return {"status": "healthy", "app": settings.APP_NAME, "version": settings.APP_VERSION}
 
 
-# Include API routers
-app.include_router(workflows.router, prefix="/api")
-app.include_router(executions.router, prefix="/api")
-app.include_router(webhooks.router, prefix="/api")
-app.include_router(use_cases.router, prefix="/api")
+for module in (use_cases, runs, approvals, knowledge, triggers, workflows, executions, system):
+    app.include_router(module.router, prefix="/api")
 
 
-# Error handlers
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    """
-    Global exception handler
-    """
-    return {
-        "error": "Internal server error",
-        "detail": str(exc) if settings.DEBUG else "An error occurred"
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG
+async def global_exception_handler(request: Request, exc: Exception):
+    log.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "detail": str(exc) if settings.DEBUG else None},
     )
-

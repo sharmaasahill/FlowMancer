@@ -40,9 +40,10 @@ wheels/
 .coverage
 htmlcov/
 
-# Database
+# Database / local data
 *.db
 *.sqlite3
+knowledge_data/
 
 # Logs
 *.log

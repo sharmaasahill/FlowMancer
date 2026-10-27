@@ -1,390 +1,209 @@
 'use client';
 
-import { useState } from 'react';
-import { Mail, FileText, Users, Loader2 } from 'lucide-react';
-import { useCasesApi } from '@/lib/api';
-import type { LeadInput, EmailInput, DocumentInput } from '@/types';
+import { useEffect, useState } from 'react';
+import { FileText, Mail, Upload, Users } from 'lucide-react';
+import { errorMessage, runsApi } from '@/lib/api';
+import { useRunStream } from '@/lib/useRunStream';
+import type { Approval, Kind, Mode } from '@/types';
+import RunSteps from '@/components/RunSteps';
+import RunResult from '@/components/RunResult';
+import { Card, ErrorBanner, Field, PageHeader, StatusBadge, buttonClass, inputClass } from '@/components/ui';
+import { cn } from '@/lib/utils';
+
+const TABS: { id: Kind; label: string; icon: typeof Users }[] = [
+  { id: 'lead', label: 'Lead Qualification', icon: Users },
+  { id: 'email', label: 'Email Processing', icon: Mail },
+  { id: 'document', label: 'Document Processing', icon: FileText },
+];
+
+function ModePicker({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+  return (
+    <fieldset>
+      <legend className="mb-1 block text-sm font-medium text-gray-700">Processing mode</legend>
+      <div className="grid grid-cols-2 gap-2">
+        {([
+          ['quick', 'Quick', 'One AI call, seconds'],
+          ['crew', 'Crew', '4 specialist agents, minutes'],
+        ] as const).map(([value, label, hint]) => (
+          <label key={value} className={cn(
+            'cursor-pointer rounded-lg border p-3 text-sm focus-within:ring-2 focus-within:ring-blue-500',
+            mode === value ? 'border-blue-600 bg-blue-50' : 'border-gray-300',
+          )}>
+            <input type="radio" name="mode" value={value} checked={mode === value}
+              onChange={() => setMode(value)} className="sr-only" />
+            <span className="block font-semibold">{label}</span>
+            <span className="text-xs text-gray-600">{hint}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 export default function UseCaseDemo() {
-  const [activeTab, setActiveTab] = useState<'lead' | 'email' | 'document'>('lead');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [tab, setTab] = useState<Kind>('lead');
+  const [mode, setMode] = useState<Mode>('quick');
+  const [docSource, setDocSource] = useState<'paste' | 'upload'>('paste');
+  const [runId, setRunId] = useState<number | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const { run, error: streamError } = useRunStream(runId);
 
-  // Lead Qualification Form
-  const handleLeadQualification = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
+  const busy = submitting || (!!run && (run.status === 'queued' || run.status === 'running'));
 
-    const formData = new FormData(e.currentTarget);
-    const leadData: LeadInput = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      company: formData.get('company') as string,
-      phone: formData.get('phone') as string,
-      message: formData.get('message') as string,
-      source: 'website',
-    };
+  useEffect(() => {
+    if (run?.status === 'completed') runsApi.approvals(run.id).then(setApprovals).catch(() => setApprovals([]));
+    else setApprovals([]);
+  }, [run?.status, run?.id]);
 
+  const start = async (fn: () => Promise<{ id: number }>) => {
+    setSubmitting(true);
+    setSubmitError(null);
+    setRunId(null);
     try {
-      const response = await useCasesApi.qualifyLead(leadData);
-      const apiData = response.data;
-      
-      // Extract only the data we need for display
-      setResult({
-        status: apiData.result?.status || apiData.status || 'completed',
-        assessment: apiData.result?.assessment || apiData.assessment || '',
-        ai_model: apiData.result?.ai_model || apiData.ai_model || '',
-        error: apiData.result?.error || apiData.error || '',
-        message: 'Lead qualified successfully'
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      setResult({ status: 'error', message: 'Failed to process lead', error: String(error) });
+      setRunId((await fn()).id);
+    } catch (e) {
+      setSubmitError(errorMessage(e));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  // Email Processing Form
-  const handleEmailProcessing = async (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
-    setResult(null);
+    const f = new FormData(e.currentTarget);
+    const get = (k: string) => ((f.get(k) as string) || '').trim() || undefined;
 
-    const formData = new FormData(e.currentTarget);
-    const emailData: EmailInput = {
-      from_email: formData.get('from_email') as string,
-      subject: formData.get('subject') as string,
-      body: formData.get('body') as string,
-    };
-
-    try {
-      const response = await useCasesApi.processEmail(emailData);
-      const apiData = response.data;
-      
-      // Extract only the data we need for display
-      setResult({
-        status: apiData.result?.status || apiData.status || 'completed',
-        result: apiData.result?.result || apiData.result || '',
-        ai_model: apiData.result?.ai_model || apiData.ai_model || '',
-        error: apiData.result?.error || apiData.error || '',
-        message: 'Email processed successfully'
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      setResult({ status: 'error', message: 'Failed to process email', error: String(error) });
-    } finally {
-      setLoading(false);
+    if (tab === 'lead') {
+      start(() => runsApi.startJob('lead', {
+        name: get('name'), email: get('email'), company: get('company'),
+        phone: get('phone'), message: get('message'), source: 'website',
+      }, mode));
+    } else if (tab === 'email') {
+      start(() => runsApi.startJob('email', { from_email: get('from_email'), subject: get('subject') || '', body: get('body') || '' }, mode));
+    } else if (docSource === 'upload') {
+      const file = f.get('file') as File | null;
+      if (!file || !file.size) {
+        setSubmitError('Choose a file to upload.');
+        return;
+      }
+      start(() => runsApi.uploadDocument(file, get('document_type') || 'auto', mode));
+    } else {
+      start(() => runsApi.startJob('document', { document_type: get('document_type') || 'auto', file_content: get('file_content') }, mode));
     }
   };
 
-  // Document Processing Form
-  const handleDocumentProcessing = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
-
-    const formData = new FormData(e.currentTarget);
-    const documentData: DocumentInput = {
-      document_type: formData.get('document_type') as string,
-      file_content: formData.get('file_content') as string,
-    };
-
-    try {
-      const response = await useCasesApi.processDocument(documentData);
-      const apiData = response.data;
-      
-      // Extract only the data we need for display
-      setResult({
-        status: apiData.result?.status || apiData.status || 'completed',
-        result: apiData.result?.result || apiData.result || '',
-        ai_model: apiData.result?.ai_model || apiData.ai_model || '',
-        error: apiData.result?.error || apiData.error || '',
-        message: 'Document processed successfully'
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      setResult({ status: 'error', message: 'Failed to process document', error: String(error) });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const submitLabel = { lead: 'Qualify lead', email: 'Process email', document: 'Process document' }[tab];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Use Case Demos</h1>
-        <p className="text-gray-600 mt-1">Try out FlowMancer's AI-powered automation</p>
+      <PageHeader title="Try it" subtitle="Run a lead, email or document through the AI and watch each step live" />
+
+      <div role="tablist" aria-label="Use case" className="flex flex-wrap gap-2 border-b">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button key={id} role="tab" type="button" aria-selected={tab === id}
+            onClick={() => { setTab(id); setRunId(null); setSubmitError(null); }}
+            className={cn(
+              'flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+              tab === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-600 hover:text-gray-900',
+            )}>
+            <Icon className="h-4 w-4" aria-hidden /> {label}
+          </button>
+        ))}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-4 border-b">
-        <button
-          onClick={() => setActiveTab('lead')}
-          className={`flex items-center gap-2 px-6 py-3 font-semibold border-b-2 transition ${
-            activeTab === 'lead'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <Users className="w-5 h-5" />
-          Lead Qualification
-        </button>
-        <button
-          onClick={() => setActiveTab('email')}
-          className={`flex items-center gap-2 px-6 py-3 font-semibold border-b-2 transition ${
-            activeTab === 'email'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <Mail className="w-5 h-5" />
-          Email Processing
-        </button>
-        <button
-          onClick={() => setActiveTab('document')}
-          className={`flex items-center gap-2 px-6 py-3 font-semibold border-b-2 transition ${
-            activeTab === 'document'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <FileText className="w-5 h-5" />
-          Document Processing
-        </button>
-      </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <Card title="Input">
+          <form onSubmit={onSubmit} className="space-y-4" key={tab}>
+            {tab === 'lead' && (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Name" htmlFor="name"><input id="name" name="name" required className={inputClass} placeholder="John Doe" /></Field>
+                  <Field label="Email" htmlFor="email" hint="A company email lets FlowMancer research the company">
+                    <input id="email" name="email" type="email" required className={inputClass} placeholder="john@company.com" />
+                  </Field>
+                  <Field label="Company" htmlFor="company"><input id="company" name="company" className={inputClass} placeholder="Acme Corp" /></Field>
+                  <Field label="Phone" htmlFor="phone"><input id="phone" name="phone" type="tel" className={inputClass} /></Field>
+                </div>
+                <Field label="Message" htmlFor="message">
+                  <textarea id="message" name="message" rows={3} className={inputClass} placeholder="Need an enterprise plan for 500 users, budget approved" />
+                </Field>
+              </>
+            )}
 
-      {/* Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Form */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4">Input Data</h2>
-          
-          {activeTab === 'lead' && (
-            <form onSubmit={handleLeadQualification} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="John Doe"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="john@company.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                <input
-                  type="text"
-                  name="company"
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Acme Corp"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="+1 234 567 8900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                <textarea
-                  name="message"
-                  rows={3}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Interested in enterprise plan..."
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  'Qualify Lead'
-                )}
-              </button>
-            </form>
-          )}
+            {tab === 'email' && (
+              <>
+                <Field label="From" htmlFor="from_email"><input id="from_email" name="from_email" type="email" required className={inputClass} placeholder="customer@example.com" /></Field>
+                <Field label="Subject" htmlFor="subject"><input id="subject" name="subject" required className={inputClass} placeholder="Can I get a refund?" /></Field>
+                <Field label="Body" htmlFor="body" hint="Replies use your Knowledge base for policies and facts">
+                  <textarea id="body" name="body" rows={6} required className={inputClass} />
+                </Field>
+              </>
+            )}
 
-          {activeTab === 'email' && (
-            <form onSubmit={handleEmailProcessing} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">From Email</label>
-                <input
-                  type="email"
-                  name="from_email"
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="customer@example.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <input
-                  type="text"
-                  name="subject"
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Need help with product"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email Body</label>
-                <textarea
-                  name="body"
-                  required
-                  rows={6}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Hello, I'm having issues with..."
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  'Process Email'
-                )}
-              </button>
-            </form>
-          )}
-
-          {activeTab === 'document' && (
-            <form onSubmit={handleDocumentProcessing} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
-                <select
-                  name="document_type"
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="invoice">Invoice</option>
-                  <option value="contract">Contract</option>
-                  <option value="receipt">Receipt</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Document Content</label>
-                <textarea
-                  name="file_content"
-                  required
-                  rows={8}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Paste document text here..."
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  'Process Document'
-                )}
-              </button>
-            </form>
-          )}
-        </div>
-
-        {/* Results */}
-        <div className="bg-white rounded-lg shadow-md p-6 max-h-[600px] overflow-y-auto">
-          <h2 className="text-xl font-bold mb-4">AI Analysis Result</h2>
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            </div>
-          ) : result ? (
-            <div className="space-y-4">
-              {/* Status Badge */}
-              <div
-                className={`p-4 rounded-lg ${
-                  result.status === 'completed' || result.status === 'success'
-                    ? 'bg-green-50 border border-green-200'
-                    : 'bg-red-50 border border-red-200'
-                }`}
-              >
-                <p className="font-semibold">
-                  Status: {result.status === 'completed' || result.status === 'success' ? '✅ Success' : '❌ Error'}
-                </p>
-                {result.message && <p className="text-sm mt-1">{result.message}</p>}
-              </div>
-
-              {/* AI Assessment - Formatted */}
-              {result.assessment && (
-                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                  <h3 className="font-bold text-blue-900 mb-3">🤖 AI Analysis</h3>
-                  <div className="prose prose-sm max-w-none text-gray-800 whitespace-pre-line">
-                    {typeof result.assessment === 'string' ? result.assessment : JSON.stringify(result.assessment, null, 2)}
+            {tab === 'document' && (
+              <>
+                <Field label="Document type" htmlFor="document_type">
+                  <select id="document_type" name="document_type" className={inputClass} defaultValue="auto">
+                    <option value="auto">Detect automatically</option>
+                    <option value="invoice">Invoice</option>
+                    <option value="contract">Contract</option>
+                    <option value="receipt">Receipt</option>
+                    <option value="purchase_order">Purchase order</option>
+                  </select>
+                </Field>
+                <fieldset>
+                  <legend className="mb-1 text-sm font-medium text-gray-700">Source</legend>
+                  <div className="flex gap-4 text-sm">
+                    {(['paste', 'upload'] as const).map((s) => (
+                      <label key={s} className="flex items-center gap-2">
+                        <input type="radio" name="doc_source" checked={docSource === s} onChange={() => setDocSource(s)} />
+                        {s === 'paste' ? 'Paste text' : 'Upload file'}
+                      </label>
+                    ))}
                   </div>
-                </div>
-              )}
+                </fieldset>
+                {docSource === 'paste' ? (
+                  <Field label="Document text" htmlFor="file_content">
+                    <textarea id="file_content" name="file_content" rows={8} required className={inputClass}
+                      placeholder="Invoice #123, Acme Ltd, Total $1,200, due 2026-11-01" />
+                  </Field>
+                ) : (
+                  <Field label="File" htmlFor="file" hint="PDF (with real text, not a scan), TXT, MD, CSV or HTML. Max 10 MB.">
+                    <input id="file" name="file" type="file" required accept=".pdf,.txt,.md,.csv,.html,.htm,.json"
+                      className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700" />
+                  </Field>
+                )}
+              </>
+            )}
 
-              {/* Email/Document Result */}
-              {result.result && !result.assessment && (
-                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                  <h3 className="font-bold text-blue-900 mb-3">🤖 AI Analysis</h3>
-                  <div className="prose prose-sm max-w-none text-gray-800 whitespace-pre-line">
-                    {typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2)}
-                  </div>
-                </div>
-              )}
+            <ModePicker mode={mode} setMode={setMode} />
+            <ErrorBanner message={submitError} />
+            <button type="submit" disabled={busy} className={cn(buttonClass.primary, 'w-full py-3')}>
+              {tab === 'document' && docSource === 'upload' && <Upload className="h-4 w-4" aria-hidden />}
+              {busy ? 'Working...' : submitLabel}
+            </button>
+          </form>
+        </Card>
 
-              {/* AI Model Info */}
-              {result.ai_model && (
-                <div className="text-xs text-gray-500 text-center pt-2 border-t">
-                  Powered by {result.ai_model}
-                </div>
-              )}
-
-              {/* Error Details */}
-              {result.error && (
-                <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-                  <h3 className="font-bold text-red-900 mb-2">Error Details</h3>
-                  <p className="text-sm text-red-700">{result.error}</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-              <p>Submit the form to see AI-powered results</p>
-            </div>
-          )}
-        </div>
+        <Card title="Result" actions={run && <StatusBadge status={run.status} />}>
+          <div aria-live="polite">
+            {!run && !submitting && <p className="py-16 text-center text-sm text-gray-500">Submit the form to see each step as it happens.</p>}
+            {submitting && <p className="py-16 text-center text-sm text-gray-500">Starting...</p>}
+            <ErrorBanner message={streamError} />
+            {run && (
+              <div className="space-y-6">
+                {run.steps && <RunSteps steps={run.steps} startedAt={run.created_at} />}
+                {run.mode === 'crew' && run.status === 'running' && (
+                  <p className="text-xs text-gray-500">Crew mode on a local model usually takes 5-10 minutes. You can leave this page; the result will be in History.</p>
+                )}
+                {(run.status === 'completed' || run.status === 'failed') && <RunResult run={run} approvals={approvals} />}
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
     </div>
   );
 }
-

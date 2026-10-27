@@ -6,14 +6,14 @@ import sys
 
 try:
     from app.core.config import settings
-    from app.core.llm import get_llm, ask, model_label
+    from app.core.llm import ask, model_label
 except Exception as e:
     sys.exit(f"[FAIL] Could not load config: {e}")
 
 print(f"[OK] Config loaded. Provider: {model_label()}")
 
 try:
-    reply = ask(get_llm(), "Reply with exactly: FlowMancer is ready")
+    reply = ask("Reply with exactly: FlowMancer is ready", temperature=0)
 except Exception as e:
     hint = (f"Is Ollama running and is '{settings.OLLAMA_MODEL}' pulled? "
             f"Try: ollama pull {settings.OLLAMA_MODEL}"

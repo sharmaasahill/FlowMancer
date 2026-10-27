@@ -1,152 +1,125 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Play, Edit, Trash2, Plus } from 'lucide-react';
-import { workflowsApi } from '@/lib/api';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { errorMessage, workflowsApi } from '@/lib/api';
 import type { Workflow } from '@/types';
+import { TEMPLATES } from '@/lib/workflowTemplates';
+import { Badge, Card, Empty, ErrorBanner, PageHeader, Spinner, buttonClass } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
 
+const TRIGGER_LABELS: Record<string, string> = { manual: 'Manual', form: 'Website form', inbox: 'Inbox', webhook: 'Webhook' };
+
+function triggerOf(w: Workflow): string {
+  const t = w.config?.nodes?.find((n) => n.type === 'trigger');
+  return t ? TRIGGER_LABELS[t.data.trigger] || t.data.trigger : 'Manual';
+}
+
 export default function WorkflowList() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [workflows, setWorkflows] = useState<Workflow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState<string | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   useEffect(() => {
-    loadWorkflows();
+    workflowsApi.list().then(setWorkflows).catch((e) => setError(errorMessage(e)));
   }, []);
 
-  const loadWorkflows = async () => {
+  const create = async (templateId: string) => {
+    const t = TEMPLATES.find((x) => x.id === templateId)!;
+    setCreating(templateId);
+    setError(null);
     try {
-      const response = await workflowsApi.list();
-      setWorkflows(response.data);
-    } catch (error) {
-      console.error('Failed to load workflows:', error);
-    } finally {
-      setLoading(false);
+      const wf = await workflowsApi.create({
+        name: t.id === 'blank' ? 'New workflow' : t.name, description: t.id === 'blank' ? '' : t.description,
+        workflow_type: 'custom', is_active: true, config: t.graph,
+      });
+      router.push(`/workflows/${wf.id}`);
+    } catch (e) {
+      setError(errorMessage(e));
+      setCreating(null);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this workflow?')) return;
-    
+  const remove = async (w: Workflow) => {
+    if (!confirm(`Delete "${w.name}"?`)) return;
     try {
-      await workflowsApi.delete(id);
-      setWorkflows(workflows.filter(w => w.id !== id));
-    } catch (error) {
-      console.error('Failed to delete workflow:', error);
-      alert('Failed to delete workflow');
+      await workflowsApi.remove(w.id);
+      setWorkflows((ws) => (ws || []).filter((x) => x.id !== w.id));
+    } catch (e) {
+      setError(errorMessage(e));
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Workflows</h1>
-          <p className="text-gray-600 mt-1">Manage your automation workflows</p>
-        </div>
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-          <Plus className="w-5 h-5" />
-          New Workflow
+      <PageHeader title="Workflows" subtitle="Chain triggers, AI steps, conditions and actions visually">
+        <button type="button" onClick={() => setShowTemplates((s) => !s)} aria-expanded={showTemplates} className={buttonClass.primary}>
+          <Plus className="h-4 w-4" aria-hidden /> New workflow
         </button>
-      </div>
+      </PageHeader>
+      <ErrorBanner message={error} />
 
-      {/* Workflows Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center">
-            <p className="text-gray-600">Loading workflows...</p>
+      {showTemplates && (
+        <Card title="Start from">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {TEMPLATES.map((t) => (
+              <button key={t.id} type="button" onClick={() => create(t.id)} disabled={!!creating}
+                className="rounded-lg border border-gray-200 p-4 text-left hover:border-blue-500 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50">
+                <p className="flex items-center gap-2 font-semibold text-gray-900">{t.name} {creating === t.id && <Spinner className="h-4 w-4" />}</p>
+                <p className="mt-1 text-sm text-gray-600">{t.description}</p>
+              </button>
+            ))}
           </div>
-        ) : workflows.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-gray-600">No workflows found. Create your first workflow!</p>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Type</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Created</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Integrations</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {workflows.map((workflow) => (
-                <tr key={workflow.id} className="hover:bg-gray-50 transition">
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="font-semibold text-gray-900">{workflow.name}</p>
-                      {workflow.description && (
-                        <p className="text-sm text-gray-600">{workflow.description}</p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      {workflow.workflow_type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        workflow.is_active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {workflow.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {formatDate(workflow.created_at)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      {workflow.n8n_workflow_id && (
-                        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
-                          n8n
-                        </span>
-                      )}
-                      {workflow.zapier_webhook_url && (
-                        <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-medium">
-                          Zapier
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                        title="Run workflow"
-                      >
-                        <Play className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition"
-                        title="Edit workflow"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(workflow.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                        title="Delete workflow"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
+        </Card>
+      )}
+
+      <Card className="overflow-x-auto p-0">
+        {!workflows ? <div className="flex justify-center py-12"><Spinner className="h-8 w-8 text-blue-600" /></div>
+          : workflows.length === 0 ? <Empty>No workflows yet. Click &quot;New workflow&quot; to start from a template.</Empty> : (
+            <table className="w-full text-sm">
+              <thead className="border-b bg-gray-50 text-left text-gray-700">
+                <tr>
+                  <th scope="col" className="px-4 py-3">Name</th>
+                  <th scope="col" className="px-4 py-3">Trigger</th>
+                  <th scope="col" className="px-4 py-3">Steps</th>
+                  <th scope="col" className="px-4 py-3">Status</th>
+                  <th scope="col" className="px-4 py-3">Created</th>
+                  <th scope="col" className="px-4 py-3 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {workflows.map((w) => (
+                  <tr key={w.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <Link href={`/workflows/${w.id}`} className="font-semibold text-blue-700 hover:underline">{w.name}</Link>
+                      {w.description && <p className="line-clamp-1 text-gray-600">{w.description}</p>}
+                    </td>
+                    <td className="px-4 py-3">{triggerOf(w)}</td>
+                    <td className="px-4 py-3">{w.config?.nodes?.length ? w.config.nodes.length - 1 : w.workflow_type.replace('_', ' ')}</td>
+                    <td className="px-4 py-3">
+                      <Badge className={w.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}>{w.is_active ? 'Active' : 'Inactive'}</Badge>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">{formatDate(w.created_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        <Link href={`/workflows/${w.id}`} aria-label={`Edit ${w.name}`} className="rounded-md p-2 text-gray-700 hover:bg-gray-100">
+                          <Pencil className="h-4 w-4" aria-hidden />
+                        </Link>
+                        <button type="button" onClick={() => remove(w)} aria-label={`Delete ${w.name}`} className="rounded-md p-2 text-red-600 hover:bg-red-50">
+                          <Trash2 className="h-4 w-4" aria-hidden />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+      </Card>
     </div>
   );
 }
-

@@ -1,149 +1,155 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Activity, Zap, TrendingUp, Clock } from 'lucide-react';
-import { workflowsApi } from '@/lib/api';
-import type { Workflow } from '@/types';
+import Link from 'next/link';
+import {
+  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts';
+import { Activity, CheckSquare, Clock, Gauge } from 'lucide-react';
+import { errorMessage, runsApi, systemApi } from '@/lib/api';
+import type { Integrations, Run, Stats } from '@/types';
+import { Card, Empty, ErrorBanner, PageHeader, Spinner, StatusBadge } from '@/components/ui';
+import { formatDate, formatDuration, KIND_LABELS, summary } from '@/lib/utils';
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  trend?: string;
-  color: string;
-}
+const KIND_COLORS = { lead: '#2563eb', email: '#16a34a', document: '#d97706' };
+const LEVEL_COLORS: Record<string, string> = { High: '#16a34a', Medium: '#eab308', Low: '#9ca3af' };
 
-function StatCard({ title, value, icon, trend, color }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, hint }: { label: string; value: string | number; icon: typeof Activity; hint?: string }) {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderLeftColor: color }}>
+    <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-600 text-sm font-medium">{title}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
-          {trend && (
-            <p className="text-sm text-green-600 mt-1">
-              <TrendingUp className="inline w-4 h-4" /> {trend}
-            </p>
-          )}
-        </div>
-        <div className="text-4xl opacity-80" style={{ color }}>
-          {icon}
-        </div>
+        <p className="text-sm font-medium text-gray-600">{label}</p>
+        <Icon className="h-5 w-5 text-gray-400" aria-hidden />
       </div>
+      <p className="mt-2 text-3xl font-bold tabular-nums text-gray-900">{value}</p>
+      {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
     </div>
   );
 }
 
+function toRows(obj: Record<string, number>) {
+  return Object.entries(obj).filter(([k]) => k && k !== 'null').map(([name, value]) => ({ name, value }));
+}
+
 export default function Dashboard() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [recent, setRecent] = useState<Run[]>([]);
+  const [integrations, setIntegrations] = useState<Integrations | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadWorkflows();
+    const load = () => Promise.all([systemApi.stats(), runsApi.list({ limit: 6 }), systemApi.integrations()])
+      .then(([s, r, i]) => { setStats(s); setRecent(r.items); setIntegrations(i); setError(null); })
+      .catch((e) => setError(errorMessage(e)));
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
   }, []);
 
-  const loadWorkflows = async () => {
-    try {
-      const response = await workflowsApi.list();
-      setWorkflows(response.data);
-    } catch (error) {
-      console.error('Failed to load workflows:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (error && !stats) return <div className="space-y-6"><PageHeader title="Dashboard" /><ErrorBanner message={error} /></div>;
+  if (!stats) return <div className="flex justify-center py-24"><Spinner className="h-8 w-8 text-blue-600" /></div>;
 
-  const stats = {
-    totalWorkflows: workflows.length,
-    activeWorkflows: workflows.filter(w => w.is_active).length,
-    totalExecutions: 245, // Mock data
-    avgResponseTime: '2.3s', // Mock data
-  };
+  const t = stats.totals;
+  const days = stats.runs_per_day.map((d) => ({ ...d, label: d.date.slice(5) }));
+  const quals = toRows(stats.leads.by_qualification).filter((r) => r.value > 0);
+  const categories = toRows(stats.emails.by_category);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome to FlowMancer - AI-Powered Automation</p>
+      <PageHeader title="Dashboard" subtitle="Live numbers from everything FlowMancer has processed" />
+      <ErrorBanner message={error} />
+
+      {integrations && integrations.ai.reachable === false && (
+        <ErrorBanner message={`AI model unavailable: ${integrations.ai.detail}. Start the Ollama app and try again.`} />
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Items processed" value={t.runs} icon={Activity}
+          hint={t.in_progress ? `${t.in_progress} in progress` : `${t.failed} failed`} />
+        <StatCard label="Success rate" value={t.success_rate === null ? '-' : `${t.success_rate}%`} icon={Gauge} />
+        <StatCard label="Avg processing time" value={formatDuration(t.avg_duration_seconds)} icon={Clock} />
+        <Link href="/approvals" className="rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+          <StatCard label="Waiting for approval" value={t.pending_approvals} icon={CheckSquare} hint="Click to review" />
+        </Link>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Workflows"
-          value={stats.totalWorkflows}
-          icon={<Zap />}
-          trend="+12% this month"
-          color="#0ea5e9"
-        />
-        <StatCard
-          title="Active Workflows"
-          value={stats.activeWorkflows}
-          icon={<Activity />}
-          color="#10b981"
-        />
-        <StatCard
-          title="Total Executions"
-          value={stats.totalExecutions}
-          icon={<TrendingUp />}
-          trend="+25% this week"
-          color="#8b5cf6"
-        />
-        <StatCard
-          title="Avg Response Time"
-          value={stats.avgResponseTime}
-          icon={<Clock />}
-          color="#f59e0b"
-        />
-      </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <Card title="Processed per day (last 14 days)" className="xl:col-span-2">
+          {t.runs === 0 ? <Empty>Nothing processed yet. <Link className="text-blue-700 underline" href="/use-cases">Try it</Link></Empty> : (
+            <div className="h-64" role="img" aria-label="Bar chart of items processed per day by type">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={days}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" fontSize={12} />
+                  <YAxis allowDecimals={false} fontSize={12} />
+                  <Tooltip />
+                  <Legend />
+                  {(['lead', 'email', 'document'] as const).map((k) => (
+                    <Bar key={k} dataKey={k} name={KIND_LABELS[k]} stackId="a" fill={KIND_COLORS[k]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
 
-      {/* Recent Workflows */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-bold mb-4">Recent Workflows</h2>
-        {loading ? (
-          <p className="text-gray-600">Loading workflows...</p>
-        ) : workflows.length === 0 ? (
-          <p className="text-gray-600">No workflows yet. Create your first workflow!</p>
-        ) : (
-          <div className="space-y-3">
-            {workflows.slice(0, 5).map((workflow) => (
-              <div
-                key={workflow.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition"
-              >
-                <div>
-                  <h3 className="font-semibold">{workflow.name}</h3>
-                  <p className="text-sm text-gray-600">{workflow.workflow_type}</p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    workflow.is_active
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {workflow.is_active ? 'Active' : 'Inactive'}
-                </span>
+        <Card title="Lead quality">
+          {quals.length === 0 ? <Empty>No leads yet</Empty> : (
+            <>
+              <p className="text-sm text-gray-600">Average score <span className="font-bold text-gray-900">{stats.leads.avg_score}</span></p>
+              <div className="h-52" role="img" aria-label={`Lead quality: ${quals.map((q) => `${q.name} ${q.value}`).join(', ')}`}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={quals} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} label>
+                      {quals.map((q) => <Cell key={q.name} fill={LEVEL_COLORS[q.name]} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
-        )}
+            </>
+          )}
+        </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-md p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">Ready to Automate?</h2>
-        <p className="mb-4">Create intelligent workflows powered by AI agents</p>
-        <div className="flex gap-4">
-          <button className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">
-            Create Workflow
-          </button>
-          <button className="border-2 border-white px-6 py-2 rounded-lg font-semibold hover:bg-white/10 transition">
-            View Documentation
-          </button>
-        </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <Card title="Email categories">
+          {categories.length === 0 ? <Empty>No emails yet</Empty> : (
+            <div className="h-52" role="img" aria-label={`Email categories: ${categories.map((c) => `${c.name} ${c.value}`).join(', ')}`}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={categories} layout="vertical">
+                  <XAxis type="number" allowDecimals={false} fontSize={12} />
+                  <YAxis type="category" dataKey="name" width={80} fontSize={12} />
+                  <Tooltip />
+                  <Bar dataKey="value" name="Emails" fill={KIND_COLORS.email} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+
+        <Card title="Recent activity" className="xl:col-span-2" actions={<Link href="/history" className="text-sm font-semibold text-blue-700 hover:underline">View all</Link>}>
+          {recent.length === 0 ? <Empty>No activity yet</Empty> : (
+            <ul className="divide-y divide-gray-100">
+              {recent.map((r) => (
+                <li key={r.id}>
+                  <Link href={`/history/${r.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:bg-gray-50">
+                    <span className="w-20 font-medium">{KIND_LABELS[r.kind]}</span>
+                    <span className="flex-1 truncate text-gray-700">{summary(r)}</span>
+                    <span className="text-xs text-gray-500">{formatDate(r.created_at)}</span>
+                    <StatusBadge status={r.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
+
+      <p className="text-xs text-gray-500">
+        {t.workflows} workflows ({t.active_workflows} active), {t.workflow_executions} workflow runs, {t.knowledge_documents} knowledge documents.
+      </p>
     </div>
   );
 }

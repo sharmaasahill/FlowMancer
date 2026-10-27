@@ -1,7 +1,6 @@
 """
 API routes initialization
 """
-from app.api import workflows, executions, webhooks, use_cases
+from app.api import approvals, executions, knowledge, runs, system, triggers, use_cases, workflows
 
-__all__ = ["workflows", "executions", "webhooks", "use_cases"]
-
+__all__ = ["approvals", "executions", "knowledge", "runs", "system", "triggers", "use_cases", "workflows"]

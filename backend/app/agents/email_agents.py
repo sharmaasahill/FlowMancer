@@ -1,226 +1,91 @@
 """
-AI Agents for Email Processing Workflow
+Email processing: prompts for quick mode and the 4-agent crew.
 """
-from crewai import Agent, Task, Crew
-from app.core.llm import get_llm, get_crew_llm, ask, model_label
-from typing import Dict, Any
+from typing import Dict, List
+
+from app.agents.base import CrewStep
+
+CATEGORY_GUIDE = """Categories:
+- support: a customer has a problem or question about using the product
+- billing: payments, invoices, refunds, cancellations, plan changes
+- sales: someone interested in buying or upgrading
+- partnership: proposals to collaborate, integrate or resell
+- spam: unsolicited mass marketing, scams, phishing, SEO/link offers. A real person asking for help, a refund or information is NEVER spam.
+- other: anything else
+Priority: urgent = service down, security issue, or the sender says it is urgent; high = blocked customer or money at stake;
+medium = normal request; low = no action needed."""
+
+REPLY_RULES = (
+    "Reply rules: be polite and specific, answer what the sender asked, keep it under 150 words, "
+    "sign off as 'The Support Team'. Use the company knowledge base for policies, prices and facts, "
+    "and apply them correctly to the sender's situation (check dates and numbers). If the knowledge base "
+    "doesn't cover the question, promise a follow-up instead of inventing an answer."
+)
 
 
-class EmailProcessingCrew:
-    """
-    Multi-agent system for intelligent email processing and response
-    """
-    
-    def __init__(self):
-        self.llm = get_crew_llm()
-    
-    def create_agents(self):
-        """Create specialized agents for email processing"""
-        
-        # Agent 1: Email Classifier
-        email_classifier = Agent(
+def describe_email(email: Dict) -> str:
+    return (
+        f"From: {email.get('from_email', 'unknown')}\n"
+        f"Subject: {email.get('subject', '(no subject)')}\n"
+        f"Body:\n{(email.get('body') or '')[:8000]}"
+    )
+
+
+def quick_prompt(email: Dict, knowledge: str | None) -> str:
+    parts = ["You are an expert at triaging a company's inbox. Analyze this email.", describe_email(email),
+             CATEGORY_GUIDE]
+    parts.append(knowledge or "Company knowledge base: no relevant entries.")
+    parts.append(REPLY_RULES)
+    return "\n\n".join(parts)
+
+
+def crew_steps(email: Dict, knowledge: str | None) -> List[CrewStep]:
+    kb = knowledge or "Company knowledge base: no relevant entries."
+    return [
+        CrewStep(
+            name="Email Classifier",
             role="Email Classifier",
-            goal="Categorize incoming emails and determine their priority and intent",
-            backstory="""You are an expert at triaging business emails. You can quickly identify 
-            whether an email is a support request, sales inquiry, partnership opportunity, or spam. 
-            You understand urgency levels and can spot VIP senders.""",
-            llm=self.llm,
-            verbose=False,
-            allow_delegation=False
-        )
-        
-        # Agent 2: Sentiment Analyzer
-        sentiment_analyzer = Agent(
+            goal="Categorize the email and identify what the sender wants",
+            backstory="You triage thousands of business emails and spot spam instantly.",
+            description=(
+                "Classify this email: what the sender wants, its category and keywords.\n\n"
+                f"{CATEGORY_GUIDE}\n\n{describe_email(email)}"
+            ),
+            expected_output="Category, one-line intent and keywords",
+        ),
+        CrewStep(
+            name="Sentiment Analyzer",
             role="Sentiment Analyzer",
-            goal="Analyze the emotional tone and urgency of emails",
-            backstory="""You are a communication expert who excels at reading between the lines. 
-            You can detect frustration, satisfaction, urgency, or casual inquiry from email content. 
-            Your analysis helps prioritize responses and choose appropriate tone.""",
-            llm=self.llm,
-            verbose=False,
-            allow_delegation=False
-        )
-        
-        # Agent 3: Response Drafter
-        response_drafter = Agent(
+            goal="Judge tone and urgency",
+            backstory="You read between the lines of customer communication.",
+            description="Assess sentiment (positive/neutral/negative), emotional tone and urgency "
+                        "(urgent/high/medium/low) of the email, with a short justification.",
+            expected_output="Sentiment, tone and urgency with justification",
+        ),
+        CrewStep(
+            name="Response Drafter",
             role="Response Drafter",
-            goal="Create professional, contextually appropriate email responses",
-            backstory="""You are a master of business communication. You write clear, professional, 
-            and empathetic email responses that address the sender's needs. You adapt your tone 
-            based on the situation and always maintain brand voice.""",
-            llm=self.llm,
-            verbose=False,
-            allow_delegation=False
-        )
-        
-        # Agent 4: Action Coordinator
-        action_coordinator = Agent(
+            goal="Write the best possible reply",
+            backstory="You write clear, empathetic business replies.",
+            description=f"Draft the reply to this email.\n\n{REPLY_RULES}\n\n{kb}",
+            expected_output="The complete reply text",
+        ),
+        CrewStep(
+            name="Action Coordinator",
             role="Action Coordinator",
-            goal="Determine required actions and route emails to appropriate team members",
-            backstory="""You are an operations expert who knows exactly what actions each email requires. 
-            You can identify when to escalate, who should handle what, and what follow-up is needed. 
-            You ensure nothing falls through the cracks.""",
-            llm=self.llm,
-            verbose=False,
-            allow_delegation=False
-        )
-        
-        return email_classifier, sentiment_analyzer, response_drafter, action_coordinator
-    
-    def create_tasks(self, email_data: Dict[str, Any], agents: tuple):
-        """Create tasks for the email processing workflow"""
-        
-        email_classifier, sentiment_analyzer, response_drafter, action_coordinator = agents
-        
-        # Task 1: Classify Email
-        classify_task = Task(
-            description=f"""Classify this email:
-            
-            From: {email_data.get('from_email', 'Unknown')}
-            Subject: {email_data.get('subject', 'No Subject')}
-            Body: {email_data.get('body', '')}
-            
-            Determine:
-            - Category (support/sales/partnership/spam/other)
-            - Sub-category if applicable
-            - Keywords and tags
-            - Whether it's auto-generated or human-written
-            
-            Provide detailed classification.""",
-            agent=email_classifier,
-            expected_output="Email category, tags, and classification details"
-        )
-        
-        # Task 2: Analyze Sentiment and Priority
-        sentiment_task = Task(
-            description="""Analyze the sentiment and urgency of this email:
-            
-            Assess:
-            - Sentiment (positive/neutral/negative)
-            - Urgency level (urgent/high/medium/low)
-            - Emotional tone (frustrated/satisfied/curious/angry/neutral)
-            - VIP status (based on sender and content)
-            
-            Provide sentiment analysis and priority recommendation.""",
-            agent=sentiment_analyzer,
-            expected_output="Sentiment analysis with urgency level and emotional tone assessment"
-        )
-        
-        # Task 3: Draft Response
-        draft_task = Task(
-            description="""Based on the email classification and sentiment:
-            
-            Draft an appropriate response:
-            - Use professional and empathetic tone
-            - Address the sender's key concerns or questions
-            - Provide helpful information or next steps
-            - Match the urgency level
-            - Keep it concise but complete
-            
-            Create a draft response ready for review or sending.""",
-            agent=response_drafter,
-            expected_output="Professional draft email response ready for review"
-        )
-        
-        # Task 4: Coordinate Actions
-        action_task = Task(
-            description="""Determine required actions for this email:
-            
-            Decide:
-            1. Who should this be assigned to? (support team/sales/partnerships)
-            2. What actions are required? (respond/escalate/add to CRM/schedule call)
-            3. What's the timeline for response?
-            4. Should this trigger any workflows?
-            5. What knowledge base articles are relevant?
-            
-            Create a complete action plan.""",
-            agent=action_coordinator,
-            expected_output="Complete action plan with assignments, timeline, and follow-up tasks"
-        )
-        
-        return [classify_task, sentiment_task, draft_task, action_task]
-    
-    def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Process an email through the multi-agent workflow
-        """
-        try:
-            # Create agents and tasks
-            agents = self.create_agents()
-            tasks = self.create_tasks(email_data, agents)
-            
-            # Create crew and execute
-            crew = Crew(
-                agents=list(agents),
-                tasks=tasks,
-                verbose=False
-            )
-            
-            # Execute the crew workflow
-            result = crew.kickoff()
-            
-            # Parse and structure the results
-            return {
-                "status": "completed",
-                "email_data": email_data,
-                "processing_result": str(result),
-                "agents_involved": [agent.role for agent in agents],
-                "tasks_completed": len(tasks),
-                "ai_model": model_label()
-            }
-            
-        except Exception as e:
-            return {
-                "status": "failed",
-                "error": str(e),
-                "email_data": email_data
-            }
+            goal="Decide ownership and follow-up",
+            backstory="You make sure nothing falls through the cracks.",
+            description="Decide the owning team, whether action is required, tags, and any follow-up.",
+            expected_output="Owning team, action required (yes/no), tags",
+        ),
+    ]
 
 
-# Simplified version for quick email processing
-class QuickEmailProcessor:
-    """
-    Simplified email processor for faster processing
-    """
-    
-    def __init__(self):
-        self.llm = get_llm()
-    
-    def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Quick email processing using single LLM call"""
-        
-        prompt = f"""You are an email processing expert. Analyze this email and provide a structured response.
-
-Email:
-From: {email_data.get('from_email', 'Unknown')}
-Subject: {email_data.get('subject', 'No Subject')}
-Body: {email_data.get('body', '')}
-
-Analyze and provide:
-1. Category (support/sales/partnership/spam)
-2. Priority level (urgent/high/medium/low)
-3. Sentiment (positive/neutral/negative)
-4. Draft a professional reply
-5. Is action required?
-6. Which team should handle this?
-7. Relevant tags
-
-Be specific and actionable in your response."""
-        
-        try:
-            response_text = ask(self.llm, prompt)
-            
-            return {
-                "status": "completed",
-                "email_data": email_data,
-                "result": response_text,
-                "ai_model": model_label()
-            }
-        except Exception as e:
-            import traceback
-            return {
-                "status": "failed",
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            }
-
+def structure_prompt(email: Dict, crew_outputs: List[str]) -> str:
+    work = "\n\n".join(f"--- {name} ---\n{out}" for name, out in
+                       zip(["Classifier", "Sentiment", "Draft reply", "Actions"], crew_outputs))
+    return (
+        "Convert the team's analysis into the required structured result. "
+        "Use the drafted reply as draft_reply, unchanged.\n\n"
+        f"{CATEGORY_GUIDE}\n\n{describe_email(email)}\n\nTeam analysis:\n{work}"
+    )

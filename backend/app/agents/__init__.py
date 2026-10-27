@@ -1,16 +1,8 @@
 """
-Agents module initialization
+Agent prompts and crew definitions per use case.
+The orchestration lives in app/services/processing.py.
 """
-from app.agents.lead_agents import LeadQualificationCrew, QuickLeadScorer
-from app.agents.email_agents import EmailProcessingCrew, QuickEmailProcessor
-from app.agents.document_agents import DocumentProcessingCrew, QuickDocumentProcessor
+from app.agents import lead_agents, email_agents, document_agents
+from app.agents.base import CrewStep, run_crew
 
-__all__ = [
-    "LeadQualificationCrew",
-    "QuickLeadScorer",
-    "EmailProcessingCrew",
-    "QuickEmailProcessor",
-    "DocumentProcessingCrew",
-    "QuickDocumentProcessor",
-]
-
+__all__ = ["lead_agents", "email_agents", "document_agents", "CrewStep", "run_crew"]
