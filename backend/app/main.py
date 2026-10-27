@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import approvals, executions, knowledge, runs, system, triggers, use_cases, workflows
+from app.api import approvals, assistant, auth, executions, knowledge, runs, system, triggers, use_cases, workflows
 from app.core.config import settings
 from app.core.database import init_db
 from app.services import inbox
@@ -60,7 +60,7 @@ def health_check():
     return {"status": "healthy", "app": settings.APP_NAME, "version": settings.APP_VERSION}
 
 
-for module in (use_cases, runs, approvals, knowledge, triggers, workflows, executions, system):
+for module in (auth, assistant, use_cases, runs, approvals, knowledge, triggers, workflows, executions, system):
     app.include_router(module.router, prefix="/api")
 
 

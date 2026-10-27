@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import session_scope
 from app.integrations import post_slack
-from app.models import Run
+from app.models import KnowledgeDocument, Run
 from app.services import approvals
 from app.services import processing
 from app.services.progress import StepTracker
@@ -22,14 +22,14 @@ from app.services.progress import StepTracker
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="flowmancer-run")
 
 
-def create_run(db: Session, kind: str, data: Dict, mode: str = "quick", source: str = "api",
-               workflow_execution_id: Optional[int] = None) -> Run:
+def create_run(db: Session, kind: str, data: Dict, mode: str = "quick", source: str = "api", *,
+               user_id: Optional[int], workflow_execution_id: Optional[int] = None) -> Run:
     if kind not in processing.KINDS:
         raise ValueError(f"Unknown kind: {kind}")
     if mode not in processing.MODES:
         raise ValueError(f"Unknown mode: {mode}")
     tracker = StepTracker(processing.step_names(kind, mode))
-    run = Run(kind=kind, mode=mode, status="queued", source=source, input_data=data,
+    run = Run(user_id=user_id, kind=kind, mode=mode, status="queued", source=source, input_data=data,
               steps=tracker.steps, workflow_execution_id=workflow_execution_id)
     db.add(run)
     db.commit()
@@ -63,14 +63,15 @@ def execute_run(run_id: int, followups: bool = True) -> Run:
     """Run the pipeline for an existing run. Always returns the (refreshed) run; never raises."""
     with session_scope() as db:
         run = db.get(Run, run_id)
-        kind, mode, data = run.kind, run.mode, dict(run.input_data or {})
+        kind, mode, data, user_id = run.kind, run.mode, dict(run.input_data or {}), run.user_id
         run.status = "running"
         db.commit()
+        doc_ids = [d for (d,) in db.query(KnowledgeDocument.id).filter(KnowledgeDocument.user_id == user_id)]
 
     tracker = StepTracker(processing.step_names(kind, mode), on_change=lambda s: _save_steps(run_id, s))
     started = time.monotonic()
     try:
-        outcome = processing.process(kind, data, mode, tracker)
+        outcome = processing.process(kind, data, mode, tracker, doc_ids=doc_ids)
         error = None
     except Exception as e:
         tracker.fail_running(str(e))
@@ -96,20 +97,22 @@ def execute_run(run_id: int, followups: bool = True) -> Run:
 
         if not error and followups:
             for proposal in approvals.default_proposals(kind, data, outcome.output):
-                approvals.create(db, proposal, run_id=run_id)
+                approvals.create(db, proposal, user_id=user_id, run_id=run_id)
 
         db.refresh(run)
         db.expunge(run)
         return run
 
 
-def run_now(db: Session, kind: str, data: Dict, mode: str = "quick", source: str = "api") -> Run:
-    run = create_run(db, kind, data, mode, source)
+def run_now(db: Session, kind: str, data: Dict, mode: str = "quick", source: str = "api", *,
+            user_id: Optional[int]) -> Run:
+    run = create_run(db, kind, data, mode, source, user_id=user_id)
     return execute_run(run.id)
 
 
-def run_in_background(db: Session, kind: str, data: Dict, mode: str = "quick", source: str = "api") -> Run:
-    run = create_run(db, kind, data, mode, source)
+def run_in_background(db: Session, kind: str, data: Dict, mode: str = "quick", source: str = "api", *,
+                      user_id: Optional[int]) -> Run:
+    run = create_run(db, kind, data, mode, source, user_id=user_id)
     _executor.submit(execute_run, run.id)
     return run
 

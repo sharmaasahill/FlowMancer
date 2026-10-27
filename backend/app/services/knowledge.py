@@ -91,15 +91,19 @@ def delete_document(doc_id: int):
     _get_collection().delete(where={"doc_id": doc_id})
 
 
-def search(query: str, k: int = 4, max_distance: float = 0.75) -> List[dict]:
-    """Top-k relevant chunks. Chunks beyond `max_distance` (cosine) are treated as unrelated."""
+def search(query: str, k: int = 4, max_distance: float = 0.75, doc_ids: Optional[List[int]] = None) -> List[dict]:
+    """
+    Top-k relevant chunks. Chunks beyond `max_distance` (cosine) are treated as unrelated.
+    `doc_ids` limits the search to those documents (one user's library); None searches everything.
+    """
     query = (query or "").strip()
-    if not query:
+    if not query or doc_ids == []:
         return []
     collection = _get_collection()
     if collection.count() == 0:
         return []
-    res = collection.query(query_texts=[query[:2000]], n_results=min(k, collection.count()))
+    kwargs = {"where": {"doc_id": {"$in": list(doc_ids)}}} if doc_ids is not None else {}
+    res = collection.query(query_texts=[query[:2000]], n_results=min(k, collection.count()), **kwargs)
     out = []
     for text, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
         if dist is not None and dist > max_distance:

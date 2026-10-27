@@ -1,10 +1,15 @@
 """
 Database Configuration and Session Management
 """
+import logging
 from contextlib import contextmanager
-from sqlalchemy import create_engine
+
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
+
 from app.core.config import settings
+
+log = logging.getLogger("flowmancer.db")
 
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
@@ -39,7 +44,32 @@ def session_scope():
         db.close()
 
 
+def add_missing_columns():
+    """
+    Tiny forward-only migration: add model columns that an existing table lacks.
+    Only nullable columns are added, so existing rows stay valid. (Renames and drops
+    still need a manual step.)
+    """
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                continue
+            present = {c["name"] for c in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in present or not column.nullable:
+                    continue
+                col_type = column.type.compile(dialect=engine.dialect)
+                conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {col_type}'))
+                if column.index:
+                    conn.execute(text(f'CREATE INDEX IF NOT EXISTS "ix_{table.name}_{column.name}" '
+                                      f'ON "{table.name}" ("{column.name}")'))
+                log.info("Added column %s.%s", table.name, column.name)
+
+
 def init_db():
-    """Create all tables."""
+    """Create missing tables and columns."""
     import app.models  # noqa: F401  (registers models)
     Base.metadata.create_all(bind=engine)
+    add_missing_columns()

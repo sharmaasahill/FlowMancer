@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Check, Copy, Globe, Inbox, MessageSquare, RefreshCw, Webhook } from 'lucide-react';
+import { Building2, Check, Copy, Globe, Inbox, KeyRound, MessageSquare, RefreshCw, Webhook } from 'lucide-react';
 import Orb from '@/components/Orb';
 import { useToast } from '@/components/Toast';
 import { ErrorBanner, Loading, PageHeader, Panel, rise, Spinner, stagger } from '@/components/ui';
-import { API_BASE_URL, errorMessage, systemApi } from '@/lib/api';
+import { API_BASE_URL, authApi, errorMessage, systemApi } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useSystem } from '@/lib/system';
 import { cn, timeAgo } from '@/lib/utils';
 
@@ -48,7 +49,25 @@ export default function IntegrationsPage() {
   const { integrations: info, error: loadError, refresh } = useSystem();
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rotating, setRotating] = useState(false);
+  const [revealKey, setRevealKey] = useState(false);
   const toast = useToast();
+  const { setUser } = useAuth();
+
+  const rotate = async () => {
+    if (!confirm('Create a new trigger key? Forms and webhooks using the old key will stop working until you update them.')) return;
+    setRotating(true);
+    setError(null);
+    try {
+      setUser(await authApi.rotateTriggerKey());
+      await refresh();
+      toast({ tone: 'success', title: 'New trigger key created', detail: 'Update your website form and webhooks.' });
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setRotating(false);
+    }
+  };
 
   const poll = async () => {
     setPolling(true);
@@ -66,7 +85,8 @@ export default function IntegrationsPage() {
 
   if (!info) return loadError ? <div className="pt-4"><ErrorBanner message={loadError} /></div> : <Loading />;
   const m = info.mailbox;
-  const secret = info.triggers.secret_required ? '?secret=YOUR_TRIGGER_SECRET' : '';
+  const key = info.triggers.key;
+  const shownKey = revealKey ? key : `${key.slice(0, 8)}${'•'.repeat(18)}`;
 
   return (
     <div className="space-y-8 pt-4">
@@ -109,12 +129,14 @@ export default function IntegrationsPage() {
 
         <div className="grid gap-6 xl:grid-cols-2">
           <Panel eyebrow="Trigger" title="Inbox" actions={
-            <button type="button" onClick={poll} disabled={!m.configured || polling} className="btn-ghost !py-1.5 text-xs">
+            <button type="button" onClick={poll} disabled={!m.configured || !m.is_owner || polling} className="btn-ghost !py-1.5 text-xs">
               {polling ? <Spinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden />} Check now
             </button>
           }>
             <div className="space-y-2 text-sm text-fog">
               <p>Unread mail in <span className="font-mono text-bone">{m.folder}</span> is processed and marked read. Approved replies go to your Drafts folder; nothing is sent.</p>
+              {m.configured && !m.is_owner && <p className="text-amber">This inbox belongs to {m.owner_email}. Only that account can check it.</p>}
+              {m.configured && m.is_owner && <p>Emails from this inbox are added to <span className="text-bone">your</span> account.</p>}
               <p>Auto-check: <span className="text-bone">{m.auto_poll_seconds > 0 ? `every ${m.auto_poll_seconds}s` : 'off'}</span>{m.last_poll && <> · last check {timeAgo(m.last_poll)}, {m.last_count} email(s)</>}</p>
               {m.last_error && <p className="text-coral">Last error: {m.last_error}</p>}
             </div>
@@ -134,9 +156,22 @@ export default function IntegrationsPage() {
           </Panel>
         </div>
 
+        <Panel eyebrow="Your account" title="Trigger key" actions={
+          <button type="button" onClick={rotate} disabled={rotating} className="btn-ghost !py-1.5 text-xs">
+            {rotating ? <Spinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden />} New key
+          </button>
+        }>
+          <p className="mb-4 text-sm text-fog">Public triggers (your website form, webhooks from Zapier or n8n) use this key to know the work is yours. Keep it private.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <KeyRound className="h-4 w-4 text-blush" aria-hidden />
+            <code className="rounded-xl border border-white/[0.07] bg-noir-950/70 px-3 py-2 font-mono text-xs text-bone">{shownKey}</code>
+            <button type="button" className="btn-quiet !px-2.5 !py-1 text-xs" onClick={() => setRevealKey((r) => !r)}>{revealKey ? 'Hide' : 'Show'}</button>
+          </div>
+        </Panel>
+
         <Panel eyebrow="Trigger" title="Website form">
           <p className="mb-4 text-sm text-fog">Point any HTML form here. Fields like name, email, company, phone and message are recognised automatically.</p>
-          <CodeBlock code={`<form method="POST" action="${API_BASE_URL}${info.triggers.form_url}${secret}">
+          <CodeBlock code={`<form method="POST" action="${API_BASE_URL}${info.triggers.form_url}?key=${key}">
   <input name="name" required>
   <input name="email" type="email" required>
   <input name="company">
@@ -144,11 +179,9 @@ export default function IntegrationsPage() {
   <button>Send</button>
 </form>`} />
           <p className="mb-2 mt-5 text-sm text-fog">Run a workflow from Zapier, n8n or your own code:</p>
-          <CodeBlock code={`curl -X POST ${API_BASE_URL}${info.triggers.webhook_url.replace('{workflow_id}', '1')}${secret} \\
+          <CodeBlock code={`curl -X POST "${API_BASE_URL}${info.triggers.webhook_url.replace('{workflow_id}', '1')}?key=${key}" \\
   -H "Content-Type: application/json" -d '{"name":"Ann","email":"ann@corp.io"}'`} />
-          {!info.triggers.secret_required && (
-            <p className="mt-4 text-xs text-amber">These URLs are open to anyone who can reach the backend. Set TRIGGER_SECRET before putting it online.</p>
-          )}
+          <p className="mt-4 text-xs text-fog">These snippets contain your real key. Don&apos;t paste them anywhere public.</p>
         </Panel>
       </motion.div>
     </div>

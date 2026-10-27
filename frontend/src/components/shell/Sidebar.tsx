@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { LogOut } from 'lucide-react';
 import Orb from '@/components/Orb';
 import { CountUp } from '@/components/ui';
 import { isActive, NAV } from '@/components/shell/nav';
+import { useAuth } from '@/lib/auth';
 import { useSystem } from '@/lib/system';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +27,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { stats, integrations } = useSystem();
   const pending = stats?.totals.pending_approvals ?? 0;
   const ai = integrations?.ai;
+  const { user, signOut } = useAuth();
+  const initials = (user?.name || '?').split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <div className="flex h-full flex-col">
@@ -65,17 +69,33 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      <Link href="/integrations" onClick={onNavigate}
-        className="mx-3 mb-2 mt-6 flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 transition hover:bg-white/[0.05]">
-        <Orb size={34} state={!ai ? 'thinking' : ai.reachable ? 'idle' : 'offline'} />
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold text-bone">{ai ? ai.model.replace(/ \(.*\)$/, '') : 'Connecting...'}</p>
-          <p className={cn('flex items-center gap-1.5 text-xs', ai?.reachable ? 'text-jade' : 'text-fog')}>
-            <span className={cn('h-1.5 w-1.5 rounded-full bg-current', ai?.reachable && 'animate-blink')} aria-hidden />
-            {ai ? (ai.reachable ? 'AI online' : ai.detail) : 'Checking AI'}
-          </p>
-        </div>
-      </Link>
+      <div className="mx-3 mb-2 mt-6 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.025]">
+        <Link href="/integrations" onClick={onNavigate} className="flex items-center gap-3 p-3 transition hover:bg-white/[0.04]">
+          <Orb size={30} state={!ai ? 'thinking' : ai.reachable ? 'idle' : 'offline'} />
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold text-bone">{ai ? ai.model.replace(/ \(.*\)$/, '') : 'Connecting...'}</p>
+            <p className={cn('flex items-center gap-1.5 text-xs', ai?.reachable ? 'text-jade' : 'text-fog')}>
+              <span className={cn('h-1.5 w-1.5 rounded-full bg-current', ai?.reachable && 'animate-blink')} aria-hidden />
+              {ai ? (ai.reachable ? 'AI online' : ai.detail) : 'Checking AI'}
+            </p>
+          </div>
+        </Link>
+        {user && (
+          <div className="flex items-center gap-3 border-t border-white/[0.06] p-3">
+            <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-gradient-to-br from-crimson-500 to-crimson-800 text-[11px] font-bold text-white" aria-hidden>
+              {initials}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold text-bone">{user.name}</p>
+              <p className="truncate text-xs text-fog">{user.email}</p>
+            </div>
+            <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out"
+              className="rounded-full p-2 text-fog transition hover:bg-white/[0.06] hover:text-bone">
+              <LogOut className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

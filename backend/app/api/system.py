@@ -9,8 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.core import llm
 from app.core.config import settings
+from app.api.deps import current_user
 from app.core.database import get_db
-from app.services import inbox, stats
+from app.models import User
+from app.services import accounts, inbox, stats
 
 router = APIRouter(tags=["system"])
 
@@ -19,8 +21,8 @@ AI_CACHE_SECONDS = 60
 
 
 @router.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
-    return stats.compute(db)
+def get_stats(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return stats.compute(db, user.id)
 
 
 def _check_gemini(model: str) -> tuple[bool, str]:
@@ -70,16 +72,18 @@ def _ai_status() -> dict:
 
 
 @router.get("/integrations")
-def integrations():
+def integrations(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    owner = accounts.inbox_owner(db)
     return {
         "ai": _ai_status(),
         "research": {"enabled": settings.RESEARCH_ENABLED, "engine": "DuckDuckGo + company website"},
         "slack": {"configured": bool(settings.SLACK_WEBHOOK_URL)},
         "hubspot": {"configured": bool(settings.HUBSPOT_ACCESS_TOKEN)},
         "webhook": {"configured": bool(settings.WEBHOOK_URL)},
-        "mailbox": inbox.status(),
+        "mailbox": {**inbox.status(), "is_owner": bool(owner and owner.id == user.id),
+                    "owner_email": owner.email if owner else None},
         "triggers": {
-            "secret_required": bool(settings.TRIGGER_SECRET),
+            "key": user.trigger_key,
             "form_url": "/api/triggers/form",
             "webhook_url": "/api/triggers/webhook/{workflow_id}",
         },

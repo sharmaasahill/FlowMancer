@@ -100,9 +100,10 @@ def proposal_for_action(action: str, kind: str, data: Dict, output: Dict) -> Dic
     return {"action": action, "title": title, "payload": payload}
 
 
-def create(db: Session, proposal: Dict, run_id: Optional[int] = None,
+def create(db: Session, proposal: Dict, user_id: Optional[int], run_id: Optional[int] = None,
            workflow_execution_id: Optional[int] = None) -> Approval:
     approval = Approval(
+        user_id=user_id,
         run_id=run_id,
         workflow_execution_id=workflow_execution_id,
         action=proposal["action"],

@@ -1,6 +1,8 @@
 """
 Models module initialization
 """
-from app.models.workflow import Workflow, WorkflowExecution, Run, Approval, KnowledgeDocument
+from app.models.workflow import Approval, KnowledgeDocument, Run, User, Workflow, WorkflowExecution
 
-__all__ = ["Workflow", "WorkflowExecution", "Run", "Approval", "KnowledgeDocument"]
+OWNED_MODELS = (Workflow, WorkflowExecution, Run, Approval, KnowledgeDocument)
+
+__all__ = ["User", "Workflow", "WorkflowExecution", "Run", "Approval", "KnowledgeDocument", "OWNED_MODELS"]

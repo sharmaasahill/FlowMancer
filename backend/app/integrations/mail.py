@@ -1,9 +1,9 @@
 """
 Email over IMAP: read unread inbox messages and save reply drafts.
 
-Works with Gmail and Outlook using an app password (no OAuth setup):
-- Gmail:   IMAP_HOST=imap.gmail.com, IMAP_DRAFTS_FOLDER=[Gmail]/Drafts
-- Outlook: IMAP_HOST=outlook.office365.com, IMAP_DRAFTS_FOLDER=Drafts
+Works with any mailbox that accepts an app password over IMAP, such as Gmail
+(IMAP_HOST=imap.gmail.com). Outlook.com no longer accepts app passwords for IMAP
+(it requires OAuth), so it isn't supported.
 """
 import email
 import imaplib

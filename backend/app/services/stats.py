@@ -17,8 +17,9 @@ def _as_utc(dt: datetime) -> datetime:
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
 
-def compute(db: Session) -> Dict:
-    runs = db.query(Run).all()
+def compute(db: Session, user_id: int) -> Dict:
+    """Statistics for one user's data."""
+    runs = db.query(Run).filter(Run.user_id == user_id).all()
     completed = [r for r in runs if r.status == "completed"]
     failed = [r for r in runs if r.status == "failed"]
     durations = [r.duration_seconds for r in completed if r.duration_seconds is not None]
@@ -46,11 +47,11 @@ def compute(db: Session) -> Dict:
             "success_rate": round(len(completed) / (len(completed) + len(failed)) * 100, 1)
                             if (completed or failed) else None,
             "avg_duration_seconds": round(sum(durations) / len(durations), 1) if durations else None,
-            "workflows": db.query(Workflow).count(),
-            "active_workflows": db.query(Workflow).filter(Workflow.is_active.is_(True)).count(),
-            "workflow_executions": db.query(WorkflowExecution).count(),
-            "pending_approvals": db.query(Approval).filter(Approval.status == "pending").count(),
-            "knowledge_documents": db.query(KnowledgeDocument).count(),
+            "workflows": db.query(Workflow).filter(Workflow.user_id == user_id).count(),
+            "active_workflows": db.query(Workflow).filter(Workflow.user_id == user_id, Workflow.is_active.is_(True)).count(),
+            "workflow_executions": db.query(WorkflowExecution).filter(WorkflowExecution.user_id == user_id).count(),
+            "pending_approvals": db.query(Approval).filter(Approval.user_id == user_id, Approval.status == "pending").count(),
+            "knowledge_documents": db.query(KnowledgeDocument).filter(KnowledgeDocument.user_id == user_id).count(),
         },
         "by_kind": dict(Counter(r.kind for r in runs)),
         "by_mode": dict(Counter(r.mode for r in runs)),

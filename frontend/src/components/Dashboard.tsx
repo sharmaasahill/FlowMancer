@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, FileText, Mail, Users } from 'lucide-react';
 import ArtTile from '@/components/ArtTile';
+import { useAssistant } from '@/components/assistant/AssistantProvider';
 import { ActivityChart, CategoryBars, QUALITY_COLORS, QualityDonut } from '@/components/charts';
 import Orb from '@/components/Orb';
 import { CountUp, Empty, ErrorBanner, Loading, Panel, rise, stagger, StatusBadge } from '@/components/ui';
@@ -46,6 +47,7 @@ function AICore({ recent, approvals }: { recent: Run[]; approvals: Approval[] })
         </p>
         {!!ai?.fallbacks.length && <p className="mt-1 text-xs text-ash">Backup: {ai.fallbacks.join(' → ')}</p>}
       </div>
+      <AskStrip />
 
       <div className="relative mt-7">
         <div className="mb-3 flex items-center justify-between">
@@ -205,5 +207,26 @@ export default function Dashboard() {
 
       <AICore recent={recent} approvals={approvals} />
     </motion.div>
+  );
+}
+
+function AskStrip() {
+  const { setOpen, send } = useAssistant();
+  const [q, setQ] = useState('');
+  const go = (text: string) => {
+    setOpen(true);
+    if (text.trim()) send(text);
+    setQ('');
+  };
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); go(q); }} className="relative mt-6">
+      <label htmlFor="ask-core" className="sr-only">Ask FlowMancer</label>
+      <input id="ask-core" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask anything..."
+        className="field !rounded-full !py-3 pl-4 pr-12" />
+      <button type="submit" aria-label="Ask"
+        className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-crimson text-white shadow-ember transition hover:bg-crimson-500">
+        <ArrowRight className="h-4 w-4" aria-hidden />
+      </button>
+    </form>
   );
 }

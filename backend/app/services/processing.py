@@ -134,7 +134,8 @@ def validate_document(output: Dict, content: str = "") -> None:
     output["validation_status"] = "invalid" if invalid else "needs_review" if issues else "valid"
 
 
-def process(kind: str, data: Dict, mode: str, tracker: StepTracker) -> Outcome:
+def process(kind: str, data: Dict, mode: str, tracker: StepTracker, doc_ids: Optional[List[int]] = None) -> Outcome:
+    """`doc_ids`: knowledge documents this run may use (the owner's library). None = all."""
     if kind not in KINDS:
         raise ValueError(f"Unknown kind: {kind}")
     if mode not in MODES:
@@ -157,7 +158,7 @@ def process(kind: str, data: Dict, mode: str, tracker: StepTracker) -> Outcome:
 
     tracker.start(STEP_KNOWLEDGE)
     try:
-        outcome.knowledge = kb.search(_knowledge_query(kind, data))
+        outcome.knowledge = kb.search(_knowledge_query(kind, data), doc_ids=doc_ids)
     except Exception as e:
         outcome.knowledge = []
         tracker.skip(STEP_KNOWLEDGE, f"Knowledge base unavailable: {e}")

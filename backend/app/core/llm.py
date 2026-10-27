@@ -112,14 +112,16 @@ def with_fallback(call: Callable[[Target], T]) -> T:
     raise AIUnavailable("All AI models are busy or unreachable. " + " | ".join(errors))
 
 
+def text_of(content) -> str:
+    """Message content as plain text (Gemini can return a list of content parts)."""
+    if isinstance(content, list):
+        return "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in content)
+    return content or ""
+
+
 def ask(prompt: str, temperature: float = 0.2) -> str:
     """Send one prompt and return the reply text."""
-    def call(target: Target) -> str:
-        content = chat_model(target, temperature).invoke([HumanMessage(content=prompt)]).content
-        if isinstance(content, list):  # Gemini can return content parts
-            content = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in content)
-        return content
-    return with_fallback(call)
+    return with_fallback(lambda t: text_of(chat_model(t, temperature).invoke([HumanMessage(content=prompt)]).content))
 
 
 def structured_invoke(schema: Type[T], prompt: str, retries: int = 1) -> T:

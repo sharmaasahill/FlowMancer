@@ -6,9 +6,23 @@ from sqlalchemy.sql import func
 from app.core.database import Base
 
 
+class User(Base):
+    """An account. Every workflow, run, approval and knowledge document belongs to one user."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(320), nullable=False, unique=True, index=True)
+    name = Column(String(120), nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    # Identifies the account on public triggers (website form, workflow webhooks)
+    trigger_key = Column(String(64), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Workflow(Base):
     """An automation workflow. `config` holds the visual graph (nodes + edges)."""
     __tablename__ = "workflows"
+    user_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False, index=True)
@@ -23,6 +37,7 @@ class Workflow(Base):
 class WorkflowExecution(Base):
     """One run of a workflow. `agent_logs` holds the per-node log."""
     __tablename__ = "workflow_executions"
+    user_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, nullable=False, index=True)
@@ -41,6 +56,7 @@ class WorkflowExecution(Base):
 class Run(Base):
     """One AI processing of a single item (lead, email or document)."""
     __tablename__ = "runs"
+    user_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     kind = Column(String(20), nullable=False, index=True)      # lead | email | document
@@ -68,6 +84,7 @@ class Run(Base):
 class Approval(Base):
     """A proposed action waiting for a human decision."""
     __tablename__ = "approvals"
+    user_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     run_id = Column(Integer, nullable=True, index=True)
@@ -86,6 +103,7 @@ class Approval(Base):
 class KnowledgeDocument(Base):
     """A document in the company knowledge base (its chunks live in the vector store)."""
     __tablename__ = "knowledge_documents"
+    user_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)

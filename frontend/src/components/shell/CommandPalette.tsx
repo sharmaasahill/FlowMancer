@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUpRight, CornerDownLeft, FileText, Mail, Plus, Search, Upload, Users } from 'lucide-react';
+import { ArrowUpRight, CornerDownLeft, FileText, Mail, MessageCircle, Plus, Search, Upload, Users } from 'lucide-react';
 import { NAV } from '@/components/shell/nav';
 import { Kbd } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -12,12 +12,14 @@ interface Command {
   id: string;
   label: string;
   group: string;
-  href: string;
+  href?: string;
+  run?: 'ask';
   keywords: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const ACTIONS: Command[] = [
+  { id: 'a-ask', group: 'Actions', label: 'Ask FlowMancer', run: 'ask', keywords: 'assistant chat question ai help', icon: MessageCircle },
   { id: 'a-lead', group: 'Actions', label: 'Qualify a lead', href: '/studio?kind=lead', keywords: 'score sales', icon: Users },
   { id: 'a-email', group: 'Actions', label: 'Process an email', href: '/studio?kind=email', keywords: 'reply inbox', icon: Mail },
   { id: 'a-doc', group: 'Actions', label: 'Process a document', href: '/studio?kind=document', keywords: 'invoice receipt pdf', icon: FileText },
@@ -29,7 +31,7 @@ const PAGES: Command[] = NAV.flatMap((s) => s.items.map((i) => ({
   id: `p-${i.href}`, group: 'Go to', label: i.label, href: i.href, keywords: i.keywords, icon: i.icon,
 })));
 
-export default function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function CommandPalette({ open, onClose, onAsk }: { open: boolean; onClose: () => void; onAsk: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
@@ -53,7 +55,8 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
 
   const run = (c: Command) => {
     onClose();
-    router.push(c.href);
+    if (c.run === 'ask') onAsk();
+    else if (c.href) router.push(c.href);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {

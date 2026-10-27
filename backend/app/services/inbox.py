@@ -13,6 +13,7 @@ from typing import Dict, Optional
 from app.core.config import settings
 from app.core.database import session_scope
 from app.integrations import mail
+from app.services import accounts
 from app.services import engine
 from app.services import runs as runs_service
 
@@ -40,17 +41,21 @@ def poll_once() -> Dict:
         return {"status": "busy", "detail": "A poll is already running"}
     _state["polling"] = True
     try:
+        with session_scope() as db:
+            owner = accounts.inbox_owner(db)
+        if owner is None:
+            raise RuntimeError("No account to receive inbox emails yet. Create an account first.")
         messages = mail.fetch_unseen()
         dispatched = []
         with session_scope() as db:
-            flows = engine.workflows_for_trigger(db, "inbox")
+            flows = engine.workflows_for_trigger(db, "inbox", owner.id)
             for msg in messages:
                 if flows:
                     for wf in flows:
                         ex = engine.start_execution(db, wf, msg)
                         dispatched.append({"subject": msg["subject"], "workflow_execution_id": ex.id})
                 else:
-                    run = runs_service.run_in_background(db, "email", msg, "quick", source="inbox")
+                    run = runs_service.run_in_background(db, "email", msg, "quick", source="inbox", user_id=owner.id)
                     dispatched.append({"subject": msg["subject"], "run_id": run.id})
         _state.update(last_poll=datetime.now(timezone.utc).isoformat(), last_count=len(messages), last_error=None)
         return {"status": "success", "fetched": len(messages), "dispatched": dispatched}

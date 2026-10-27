@@ -1,15 +1,48 @@
 /**
  * API client for the FlowMancer backend.
+ * Every request carries the signed-in user's token; a 401 signs the user out.
  */
 import axios, { AxiosError } from 'axios';
 import type {
-  Approval, Integrations, Kind, KnowledgeDocument, Mode, Run, RunList, Stats,
+  Approval, AuthSession, ChatReply, ChatTurn, Integrations, Kind, KnowledgeDocument, Mode, Run, RunList, Stats, User,
   Workflow, WorkflowExecution, WorkflowGraph,
 } from '@/types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+/* ---------- token storage ---------- */
+const TOKEN_KEY = 'flowmancer.token';
+export const UNAUTHORIZED_EVENT = 'flowmancer:unauthorized';
+
+export function getToken(): string | null {
+  return typeof window === 'undefined' ? null : window.localStorage.getItem(TOKEN_KEY);
+}
+export function setToken(token: string) {
+  window.localStorage.setItem(TOKEN_KEY, token);
+}
+export function clearToken() {
+  window.localStorage.removeItem(TOKEN_KEY);
+}
+export function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 const api = axios.create({ baseURL: API_BASE_URL });
+
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.set('Authorization', `Bearer ${token}`);
+  return config;
+});
+
+api.interceptors.response.use(undefined, (error) => {
+  const url: string = error?.config?.url || '';
+  if (error instanceof AxiosError && error.response?.status === 401 && !url.startsWith('/api/auth/login')) {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  }
+  return Promise.reject(error);
+});
 
 /** Turn any API error into a readable message. */
 export function errorMessage(err: unknown): string {
@@ -17,13 +50,33 @@ export function errorMessage(err: unknown): string {
     const detail = (err.response?.data as any)?.detail;
     if (typeof detail === 'string') return detail;
     if (Array.isArray(detail)) {
-      return detail.map((d) => (typeof d === 'string' ? d : d.msg || d.error || JSON.stringify(d))).join('; ');
+      return detail.map((d) => {
+        if (typeof d === 'string') return d;
+        const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : d.field;
+        const msg = d.msg || d.error || JSON.stringify(d);
+        return field && field !== 'body' ? `${field}: ${msg}` : msg;
+      }).join('; ');
     }
     if (!err.response) return `Cannot reach the backend at ${API_BASE_URL}. Is it running?`;
     return `${err.response.status}: ${err.message}`;
   }
   return err instanceof Error ? err.message : String(err);
 }
+
+export const authApi = {
+  config: () => api.get<{ signups_open: boolean; has_users: boolean }>('/api/auth/config').then((r) => r.data),
+  login: (email: string, password: string) =>
+    api.post<AuthSession>('/api/auth/login', { email, password }).then((r) => r.data),
+  register: (name: string, email: string, password: string) =>
+    api.post<AuthSession>('/api/auth/register', { name, email, password }).then((r) => r.data),
+  me: () => api.get<User>('/api/auth/me').then((r) => r.data),
+  rotateTriggerKey: () => api.post<User>('/api/auth/trigger-key/rotate').then((r) => r.data),
+};
+
+export const assistantApi = {
+  chat: (messages: Pick<ChatTurn, 'role' | 'content'>[]) =>
+    api.post<ChatReply>('/api/assistant/chat', { messages }).then((r) => r.data),
+};
 
 export const runsApi = {
   startJob: (kind: Kind, payload: Record<string, any>, mode: Mode) =>

@@ -127,8 +127,10 @@ def trigger_of(workflow: Workflow) -> Optional[str]:
     return None
 
 
-def workflows_for_trigger(db: Session, trigger: str) -> List[Workflow]:
-    return [w for w in db.query(Workflow).filter(Workflow.is_active.is_(True)).all() if trigger_of(w) == trigger]
+def workflows_for_trigger(db: Session, trigger: str, user_id: int) -> List[Workflow]:
+    """Active workflows of one user that start with `trigger`."""
+    flows = db.query(Workflow).filter(Workflow.is_active.is_(True), Workflow.user_id == user_id).all()
+    return [w for w in flows if trigger_of(w) == trigger]
 
 
 # ---------------- helpers ----------------
@@ -173,8 +175,9 @@ def compare(actual: Any, operator: str, expected: Any) -> bool:
 
 # ---------------- execution ----------------
 class _Runner:
-    def __init__(self, execution_id: int, workflow: Dict, input_data: Dict):
+    def __init__(self, execution_id: int, workflow: Dict, input_data: Dict, user_id: Optional[int]):
         self.execution_id = execution_id
+        self.user_id = user_id
         self.workflow = workflow
         self.ctx: Dict[str, Any] = {"input": input_data, "result": None, "kind": None, "run_id": None}
         self.logs: List[Dict] = []
@@ -202,7 +205,7 @@ class _Runner:
         except ValidationError as e:
             raise WorkflowError(f"Input doesn't fit a {kind}: {e.errors()[0]['loc']} {e.errors()[0]['msg']}")
         with session_scope() as db:
-            run = runs_service.create_run(db, kind, data, mode, source="workflow",
+            run = runs_service.create_run(db, kind, data, mode, source="workflow", user_id=self.user_id,
                                           workflow_execution_id=self.execution_id)
         run = runs_service.execute_run(run.id, followups=False)
         if run.status != "completed":
@@ -245,7 +248,7 @@ class _Runner:
             else:
                 proposal = approvals.proposal_for_action(target, kind, data, result)
             with session_scope() as db:
-                appr = approvals.create(db, proposal, run_id=self.ctx["run_id"],
+                appr = approvals.create(db, proposal, user_id=self.user_id, run_id=self.ctx["run_id"],
                                         workflow_execution_id=self.execution_id)
                 res = {"status": "success", "detail": f"Approval #{appr.id} created", "approval_id": appr.id}
         status = "failed" if res["status"] == "error" else res["status"]
@@ -288,7 +291,8 @@ def start_execution(db: Session, workflow: Workflow, input_data: Dict) -> Workfl
     errors = validate_graph(workflow.config)
     if errors:
         raise WorkflowError("; ".join(errors))
-    execution = WorkflowExecution(workflow_id=workflow.id, input_data=input_data, status="pending", agent_logs=[])
+    execution = WorkflowExecution(workflow_id=workflow.id, user_id=workflow.user_id, input_data=input_data,
+                                  status="pending", agent_logs=[])
     db.add(execution)
     db.commit()
     db.refresh(execution)
@@ -304,8 +308,9 @@ def execute(execution_id: int):
         graph = wf.config
         meta = {"id": wf.id, "name": wf.name}
         input_data = dict(ex.input_data or {})
+        user_id = ex.user_id
 
-    runner = _Runner(execution_id, meta, input_data)
+    runner = _Runner(execution_id, meta, input_data, user_id)
     started = time.monotonic()
     runner.save(status="running")
     try:

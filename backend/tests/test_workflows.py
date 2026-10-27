@@ -105,7 +105,7 @@ def test_inactive_and_empty_workflows_cannot_run(client):
 
 def test_form_trigger_routes_to_form_workflow(client):
     wf = create(client, hot_lead_graph(trigger="form"))
-    r = client.post("/api/triggers/form", data={"your-name": "Ann Lee", "Email": "ann@corp.io",
+    r = client.post(f"/api/triggers/form?key={client.user['trigger_key']}", data={"your-name": "Ann Lee", "Email": "ann@corp.io",
                                                  "company_name": "Corp", "comments": "Pricing?", "budget": "50k"})
     assert r.status_code == 202, r.text
     ex = finished(client, r.json()["workflow_execution_ids"][0])
@@ -115,7 +115,7 @@ def test_form_trigger_routes_to_form_workflow(client):
 
 
 def test_form_trigger_without_workflow_runs_default_pipeline(client):
-    r = client.post("/api/triggers/form", json={"name": "Ann", "email": "ann@corp.io"})
+    r = client.post(f"/api/triggers/form?key={client.user['trigger_key']}", json={"name": "Ann", "email": "ann@corp.io"})
     assert r.status_code == 202
     run_id = r.json()["run_id"]
     run = wait_for(lambda: (lambda d: d if d["status"] == "completed" else None)(client.get(f"/api/runs/{run_id}").json()))
@@ -123,21 +123,30 @@ def test_form_trigger_without_workflow_runs_default_pipeline(client):
 
 
 def test_form_trigger_validation(client):
-    r = client.post("/api/triggers/form", json={"name": "Ann", "email": "nope"})
+    r = client.post(f"/api/triggers/form?key={client.user['trigger_key']}", json={"name": "Ann", "email": "nope"})
     assert r.status_code == 422
 
 
-def test_trigger_secret(client, monkeypatch):
-    monkeypatch.setattr(settings, "TRIGGER_SECRET", "s3cret")
+def test_trigger_key_identifies_the_account(client, anon):
     payload = {"name": "Ann", "email": "ann@corp.io"}
-    assert client.post("/api/triggers/form", json=payload).status_code == 401
-    assert client.post("/api/triggers/form?secret=wrong", json=payload).status_code == 401
-    assert client.post("/api/triggers/form", json=payload, headers={"X-FlowMancer-Secret": "s3cret"}).status_code == 202
+    assert anon.post("/api/triggers/form", json=payload).status_code == 401
+    assert anon.post("/api/triggers/form?key=wrong", json=payload).status_code == 401
+    r = anon.post("/api/triggers/form", json=payload, headers={"X-FlowMancer-Key": client.user["trigger_key"]})
+    assert r.status_code == 202
+    run_id = r.json()["run_id"]
+    assert client.get(f"/api/runs/{run_id}").status_code == 200  # the run belongs to the key's owner
+
+    rotated = client.post("/api/auth/trigger-key/rotate").json()["trigger_key"]
+    assert rotated != client.user["trigger_key"]
+    assert anon.post(f"/api/triggers/form?key={client.user['trigger_key']}", json=payload).status_code == 401
+    assert anon.post(f"/api/triggers/form?key={rotated}", json=payload).status_code == 202
 
 
 def test_webhook_trigger_runs_workflow(client):
     wf = create(client, hot_lead_graph(trigger="webhook"))
-    r = client.post(f"/api/triggers/webhook/{wf['id']}", json=LEAD)
+    key = client.user["trigger_key"]
+    assert client.post(f"/api/triggers/webhook/{wf['id']}", json=LEAD).status_code == 401  # key required
+    r = client.post(f"/api/triggers/webhook/{wf['id']}?key={key}", json=LEAD)
     assert r.status_code == 202
     assert finished(client, r.json()["workflow_execution_id"])["status"] == "completed"
-    assert client.post("/api/triggers/webhook/999", json=LEAD).status_code == 404
+    assert client.post(f"/api/triggers/webhook/999?key={key}", json=LEAD).status_code == 404

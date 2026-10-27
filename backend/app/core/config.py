@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./flowmancer.db"
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
+    # ---------- Accounts ----------
+    # Signs login tokens. Empty = generate one and keep it in ./.flowmancer_secret (fine for local use;
+    # set a long random value in production).
+    JWT_SECRET: str = ""
+    ACCESS_TOKEN_DAYS: int = 7
+    # Set to false after creating your account(s) to stop new sign-ups
+    ALLOW_SIGNUPS: bool = True
+
     # ---------- AI ----------
     # "gemini" (Google, free tier) or "ollama" (local, offline)
     AI_PROVIDER: str = "gemini"
@@ -46,29 +54,36 @@ class Settings(BaseSettings):
     HOT_LEAD_THRESHOLD: int = 80            # score >= this posts a Slack alert
     DOCUMENT_APPROVAL_AMOUNT: float = 1000  # documents at/above this total always need approval
 
-    # ---------- Inbox (IMAP; Gmail/Outlook app password) ----------
+    # ---------- Inbox (IMAP; Gmail app password) ----------
     IMAP_HOST: str = ""
     IMAP_PORT: int = 993
     IMAP_USER: str = ""
     IMAP_PASSWORD: str = ""
     IMAP_FOLDER: str = "INBOX"
-    IMAP_DRAFTS_FOLDER: str = "[Gmail]/Drafts"  # Outlook: "Drafts"
+    IMAP_DRAFTS_FOLDER: str = "[Gmail]/Drafts"
     INBOX_POLL_SECONDS: int = 0                 # 0 = only when you click "Check inbox"
     INBOX_MAX_PER_POLL: int = 10
+    # Account that owns emails from this inbox. Empty = the first account created.
+    INBOX_OWNER_EMAIL: str = ""
 
     # ---------- Actions ----------
     SLACK_WEBHOOK_URL: str = ""
     HUBSPOT_ACCESS_TOKEN: str = ""
     WEBHOOK_URL: str = ""  # default outbound webhook (Zapier, n8n, Make...)
 
-    # Optional shared secret for the public form/webhook triggers
-    TRIGGER_SECRET: str = ""
     MAX_UPLOAD_MB: int = 10
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors(cls, v):
         return json.loads(v) if isinstance(v, str) else v
+
+    @field_validator("JWT_SECRET")
+    @classmethod
+    def strong_secret(cls, v):
+        if v and len(v) < 32:
+            raise ValueError("JWT_SECRET must be at least 32 characters (or leave it empty to auto-generate one)")
+        return v
 
     @property
     def imap_configured(self) -> bool:

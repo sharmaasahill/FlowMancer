@@ -18,7 +18,8 @@ os.environ.update({
     "RESEARCH_ENABLED": "false",
     "SLACK_WEBHOOK_URL": "", "HUBSPOT_ACCESS_TOKEN": "", "WEBHOOK_URL": "",
     "IMAP_HOST": "", "IMAP_USER": "", "IMAP_PASSWORD": "", "INBOX_POLL_SECONDS": "0",
-    "TRIGGER_SECRET": "", "AI_PROVIDER": "gemini", "GEMINI_API_KEY": "", "OLLAMA_FALLBACK": "false",
+    "JWT_SECRET": "test-secret-0123456789-abcdefghijklmnop", "ALLOW_SIGNUPS": "true", "INBOX_OWNER_EMAIL": "",
+    "AI_PROVIDER": "gemini", "GEMINI_API_KEY": "", "OLLAMA_FALLBACK": "false",
     "CREWAI_DISABLE_TELEMETRY": "true", "OTEL_SDK_DISABLED": "true",
 })
 
@@ -128,6 +129,9 @@ def _isolate(monkeypatch):
     if existing:
         col.delete(ids=existing)
 
+    from app.services import accounts
+    accounts.reset_throttle()
+
     FAKE_AI.reset()
     monkeypatch.setattr(llm, "structured_invoke", FAKE_AI.structured_invoke)
     monkeypatch.setattr(crew_base, "run_crew", fake_run_crew)
@@ -139,9 +143,28 @@ def ai():
     return FAKE_AI
 
 
+def sign_up(client, email="owner@test.com", name="Owner", password="correct-horse-1") -> dict:
+    """Create an account and return {"headers": ..., "user": ...}."""
+    r = client.post("/api/auth/register", json={"email": email, "name": name, "password": password})
+    assert r.status_code == 201, r.text
+    body = r.json()
+    return {"headers": {"Authorization": f"Bearer {body['token']}"}, "user": body["user"]}
+
+
+@pytest.fixture
+def anon():
+    """A client with no account."""
+    with TestClient(app) as c:
+        yield c
+
+
 @pytest.fixture
 def client():
+    """A client signed in as the first account (owner@test.com)."""
     with TestClient(app) as c:
+        account = sign_up(c)
+        c.headers.update(account["headers"])
+        c.user = account["user"]
         yield c
 
 

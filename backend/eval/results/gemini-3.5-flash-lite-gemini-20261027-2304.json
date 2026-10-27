@@ -1,0 +1,655 @@
+{
+  "model": "gemini-3.5-flash-lite (Gemini)",
+  "date": "2026-10-27T23:04:58",
+  "summary": {
+    "lead": {
+      "cases": 12,
+      "passed": 12,
+      "field_accuracy": 100.0
+    },
+    "email": {
+      "cases": 10,
+      "passed": 10,
+      "field_accuracy": 100.0
+    },
+    "document": {
+      "cases": 8,
+      "passed": 8,
+      "field_accuracy": 100.0
+    }
+  },
+  "total": {
+    "cases": 30,
+    "passed": 30,
+    "avg_seconds": 8.2,
+    "fallback_used": 0,
+    "accuracy": 100.0
+  },
+  "cases": [
+    {
+      "id": "lead-high-1",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 10.1,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "High"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-high-2",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 3.1,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "High"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-high-3",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 3.5,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "High"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-high-4",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 8.2,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "High"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-med-1",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 12.5,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "Medium"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-med-2",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 10.2,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "Medium"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-med-3",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 3.0,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "Medium"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-med-4",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 2.5,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "Medium"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-low-1",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 2.9,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "Low"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-low-2",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 3.4,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "Low"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-low-3",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 2.8,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "Low"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "lead-low-4",
+      "kind": "lead",
+      "passed": true,
+      "seconds": 2.7,
+      "checks": [
+        {
+          "field": "qualification",
+          "ok": true,
+          "got": "Low"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-refund-in",
+      "kind": "email",
+      "passed": true,
+      "seconds": 5.3,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "billing"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": true
+        },
+        {
+          "field": "reply_mentions",
+          "ok": true,
+          "got": "all present"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-refund-late",
+      "kind": "email",
+      "passed": true,
+      "seconds": 2.5,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "billing"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": true
+        },
+        {
+          "field": "reply_mentions",
+          "ok": true,
+          "got": "all present"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-outage",
+      "kind": "email",
+      "passed": true,
+      "seconds": 12.5,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "support"
+        },
+        {
+          "field": "priority",
+          "ok": true,
+          "got": "urgent"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": true
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-login",
+      "kind": "email",
+      "passed": true,
+      "seconds": 2.3,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "support"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": true
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-spam-seo",
+      "kind": "email",
+      "passed": true,
+      "seconds": 11.0,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "spam"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": false
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-spam-phish",
+      "kind": "email",
+      "passed": true,
+      "seconds": 8.0,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "spam"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": false
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-sales-seats",
+      "kind": "email",
+      "passed": true,
+      "seconds": 7.3,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "sales"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": true
+        },
+        {
+          "field": "reply_mentions",
+          "ok": true,
+          "got": "all present"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-partner",
+      "kind": "email",
+      "passed": true,
+      "seconds": 8.4,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "partnership"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": true
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-double-charge",
+      "kind": "email",
+      "passed": true,
+      "seconds": 21.1,
+      "checks": [
+        {
+          "field": "category",
+          "ok": true,
+          "got": "billing"
+        },
+        {
+          "field": "priority",
+          "ok": true,
+          "got": "high"
+        },
+        {
+          "field": "reply",
+          "ok": true,
+          "got": true
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "email-thanks",
+      "kind": "email",
+      "passed": true,
+      "seconds": 8.3,
+      "checks": [
+        {
+          "field": "sentiment",
+          "ok": true,
+          "got": "positive"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "doc-invoice-gst",
+      "kind": "document",
+      "passed": true,
+      "seconds": 19.1,
+      "checks": [
+        {
+          "field": "document_type",
+          "ok": true,
+          "got": "invoice"
+        },
+        {
+          "field": "validation_status",
+          "ok": true,
+          "got": "valid"
+        },
+        {
+          "field": "approval_required",
+          "ok": true,
+          "got": true
+        },
+        {
+          "field": "total_amount",
+          "ok": true,
+          "got": 5900.0
+        },
+        {
+          "field": "counterparty_contains",
+          "ok": true,
+          "got": "Acme Cloud Services Pvt Ltd"
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "doc-bad-total",
+      "kind": "document",
+      "passed": true,
+      "seconds": 6.9,
+      "checks": [
+        {
+          "field": "document_type",
+          "ok": true,
+          "got": "invoice"
+        },
+        {
+          "field": "validation_status",
+          "ok": true,
+          "got": "invalid"
+        },
+        {
+          "field": "approval_required",
+          "ok": true,
+          "got": true
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "doc-receipt",
+      "kind": "document",
+      "passed": true,
+      "seconds": 10.0,
+      "checks": [
+        {
+          "field": "document_type",
+          "ok": true,
+          "got": "receipt"
+        },
+        {
+          "field": "validation_status",
+          "ok": true,
+          "got": "valid"
+        },
+        {
+          "field": "approval_required",
+          "ok": true,
+          "got": false
+        },
+        {
+          "field": "total_amount",
+          "ok": true,
+          "got": 7.75
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "doc-small-invoice",
+      "kind": "document",
+      "passed": true,
+      "seconds": 15.8,
+      "checks": [
+        {
+          "field": "document_type",
+          "ok": true,
+          "got": "invoice"
+        },
+        {
+          "field": "validation_status",
+          "ok": true,
+          "got": "valid"
+        },
+        {
+          "field": "approval_required",
+          "ok": true,
+          "got": false
+        },
+        {
+          "field": "total_amount",
+          "ok": true,
+          "got": 450.0
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "doc-contract",
+      "kind": "document",
+      "passed": true,
+      "seconds": 5.5,
+      "checks": [
+        {
+          "field": "document_type",
+          "ok": true,
+          "got": "contract"
+        },
+        {
+          "field": "approval_required",
+          "ok": true,
+          "got": true
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "doc-purchase-order",
+      "kind": "document",
+      "passed": true,
+      "seconds": 9.3,
+      "checks": [
+        {
+          "field": "document_type",
+          "ok": true,
+          "got": "purchase_order"
+        },
+        {
+          "field": "validation_status",
+          "ok": true,
+          "got": "valid"
+        },
+        {
+          "field": "approval_required",
+          "ok": true,
+          "got": true
+        },
+        {
+          "field": "total_amount",
+          "ok": true,
+          "got": 2400.0
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "doc-no-total",
+      "kind": "document",
+      "passed": true,
+      "seconds": 10.2,
+      "checks": [
+        {
+          "field": "document_type",
+          "ok": true,
+          "got": "invoice"
+        },
+        {
+          "field": "validation_status",
+          "ok": true,
+          "got": "needs_review"
+        },
+        {
+          "field": "approval_required",
+          "ok": true,
+          "got": true
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    },
+    {
+      "id": "doc-eur-tax",
+      "kind": "document",
+      "passed": true,
+      "seconds": 16.8,
+      "checks": [
+        {
+          "field": "document_type",
+          "ok": true,
+          "got": "invoice"
+        },
+        {
+          "field": "validation_status",
+          "ok": true,
+          "got": "valid"
+        },
+        {
+          "field": "approval_required",
+          "ok": true,
+          "got": true
+        },
+        {
+          "field": "total_amount",
+          "ok": true,
+          "got": 1180.0
+        }
+      ],
+      "error": null,
+      "model": "gemini-3.5-flash-lite (Gemini)"
+    }
+  ]
+}

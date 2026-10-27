@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Static version of the crimson Orb logo (components/Orb.tsx) -->
+  <defs>
+    <clipPath id="ball"><circle cx="32" cy="32" r="30"/></clipPath>
+    <filter id="blend" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4.5"/></filter>
+    <radialGradient id="shine" cx="0.32" cy="0.28" r="0.62">
+      <stop offset="0" stop-color="#FFEBEB" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#D64545" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#D64545" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shade" cx="0.7" cy="0.8" r="0.55">
+      <stop offset="0" stop-color="#070405" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#070405" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g clip-path="url(#ball)">
+    <rect width="64" height="64" fill="#9B1313"/>
+    <!-- the conic gradient from the logo, as blurred wedges -->
+    <g filter="url(#blend)">
+      <path d="M32 32L3.1 -6.3A48 48 0 0 1 60.9 -6.3Z" fill="#9B1313"/>
+      <path d="M32 32L59.5 -7.3A48 48 0 0 1 77.4 47.6Z" fill="#F2B8B5"/>
+      <path d="M32 32L77.9 46.0A48 48 0 0 1 31.2 80.0Z" fill="#5C0A0A"/>
+      <path d="M32 32L32.8 80.0A48 48 0 0 1 -13.9 46.0Z" fill="#D64545"/>
+      <path d="M32 32L-13.4 47.6A48 48 0 0 1 4.5 -7.3Z" fill="#2A0404"/>
+    </g>
+    <circle cx="32" cy="32" r="27" fill="url(#shine)" filter="url(#blend)"/>
+    <rect width="64" height="64" fill="url(#shade)"/>
+  </g>
+</svg>

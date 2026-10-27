@@ -5,3 +5,4 @@ knowledge_data
 tests
 __pycache__
 .pytest_cache
+.flowmancer_secret

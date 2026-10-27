@@ -220,6 +220,8 @@ export interface Integrations {
   webhook: { configured: boolean };
   mailbox: {
     configured: boolean;
+    is_owner: boolean;
+    owner_email: string | null;
     host: string | null;
     user: string | null;
     folder: string;
@@ -229,6 +231,40 @@ export interface Integrations {
     last_error: string | null;
     polling: boolean;
   };
-  triggers: { secret_required: boolean; form_url: string; webhook_url: string };
+  triggers: { key: string; form_url: string; webhook_url: string };
   rules: { hot_lead_threshold: number; document_approval_amount: number };
+}
+
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+  trigger_key: string;
+  created_at: string | null;
+}
+
+export interface AuthSession {
+  token: string;
+  user: User;
+}
+
+export interface ToolUse {
+  tool: string;
+  args: Record<string, any>;
+  ok: boolean;
+}
+
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+  tools?: ToolUse[];
+  approvals?: Approval[];
+  error?: boolean;
+}
+
+export interface ChatReply {
+  reply: string;
+  tools: ToolUse[];
+  approvals: Approval[];
+  model: string;
 }
