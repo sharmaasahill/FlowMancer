@@ -11,7 +11,7 @@ Background jobs (return immediately; follow progress at /api/runs/{id}/events):
 Sync endpoints are plain `def`, so FastAPI runs them in a worker thread and the
 server stays responsive while the model works.
 """
-from typing import List, Literal
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -83,12 +83,3 @@ async def upload_document(
     run = runs_service.run_in_background(db, "document", doc.model_dump(mode="json"), mode, source="upload")
     return RunResponse.model_validate(run)
 
-
-@router.post("/demo/lead-batch")
-def process_lead_batch(leads: List[LeadInput], db: Session = Depends(get_db)):
-    """Queue several leads at once (quick mode). Returns the run ids."""
-    if len(leads) > 50:
-        raise HTTPException(status_code=422, detail="At most 50 leads per batch")
-    run_ids = [runs_service.run_in_background(db, "lead", l.model_dump(mode="json"), "quick", "api").id
-               for l in leads]
-    return {"queued": len(run_ids), "run_ids": run_ids}

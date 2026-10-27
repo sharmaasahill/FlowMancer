@@ -28,4 +28,12 @@ def test_integrations_status(client):
     body = client.get("/api/integrations").json()
     assert body["slack"]["configured"] is False
     assert body["mailbox"]["configured"] is False
-    assert body["ai"]["provider"] == "ollama"
+    assert body["ai"]["provider"] == "gemini"
+    assert body["ai"]["reachable"] is False and "GEMINI_API_KEY" in body["ai"]["detail"]  # no key in tests
+    assert body["webhook"]["configured"] is False
+
+
+def test_timestamps_are_marked_utc(client):
+    run = client.post("/api/use-cases/qualify-lead", json=LEAD).json()
+    assert run["created_at"].endswith(("+00:00", "Z"))
+    assert run["completed_at"].endswith(("+00:00", "Z"))

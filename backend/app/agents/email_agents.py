@@ -19,7 +19,9 @@ REPLY_RULES = (
     "Reply rules: be polite and specific, answer what the sender asked, keep it under 150 words, "
     "sign off as 'The Support Team'. Use the company knowledge base for policies, prices and facts, "
     "and apply them correctly to the sender's situation (check dates and numbers). If the knowledge base "
-    "doesn't cover the question, promise a follow-up instead of inventing an answer."
+    "doesn't cover the question, promise a follow-up instead of inventing an answer. "
+    "Never claim something has already been done (refund issued, ticket opened, bug fixed): "
+    "a person reviews this draft first, so say what will happen next."
 )
 
 

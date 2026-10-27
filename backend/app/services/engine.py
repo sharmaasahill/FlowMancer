@@ -14,8 +14,6 @@ Node types
              webhook: data.url
              approval: data.approval_action = email_reply | crm_contact | document_approval | slack_message
 
-Workflows without a graph (legacy) run their workflow_type and forward the result
-to the workflow's webhook URLs.
 """
 import re
 import time
@@ -37,7 +35,6 @@ TRIGGERS = {"manual", "form", "inbox", "webhook"}
 TASKS = {"lead", "email", "document"}
 OPERATORS = {"eq", "neq", "gt", "gte", "lt", "lte", "contains", "is_true", "is_false"}
 ACTIONS = {"slack", "webhook", "crm", "email_draft", "approval"}
-LEGACY_KIND = {"lead_qualification": "lead", "email_processing": "email", "document_automation": "document"}
 INPUT_SCHEMAS = {"lead": LeadInput, "email": EmailInput, "document": DocumentInput}
 MAX_STEPS = 100
 
@@ -286,12 +283,11 @@ def start_execution(db: Session, workflow: Workflow, input_data: Dict) -> Workfl
     """Create an execution and run it in the background."""
     if not workflow.is_active:
         raise WorkflowError("Workflow is not active")
-    if has_graph(workflow.config):
-        errors = validate_graph(workflow.config)
-        if errors:
-            raise WorkflowError("; ".join(errors))
-    elif workflow.workflow_type not in LEGACY_KIND:
+    if not has_graph(workflow.config):
         raise WorkflowError("This workflow has no steps yet. Open it in the builder and add some.")
+    errors = validate_graph(workflow.config)
+    if errors:
+        raise WorkflowError("; ".join(errors))
     execution = WorkflowExecution(workflow_id=workflow.id, input_data=input_data, status="pending", agent_logs=[])
     db.add(execution)
     db.commit()
@@ -305,19 +301,15 @@ def execute(execution_id: int):
     with session_scope() as db:
         ex = db.get(WorkflowExecution, execution_id)
         wf = db.get(Workflow, ex.workflow_id)
-        graph = wf.config if has_graph(wf.config) else None
+        graph = wf.config
         meta = {"id": wf.id, "name": wf.name}
-        legacy = (wf.workflow_type, wf.zapier_webhook_url, wf.n8n_workflow_id)
         input_data = dict(ex.input_data or {})
 
     runner = _Runner(execution_id, meta, input_data)
     started = time.monotonic()
     runner.save(status="running")
     try:
-        if graph:
-            runner.run_graph(graph)
-        else:
-            _run_legacy(runner, *legacy)
+        runner.run_graph(graph)
         runner.save(status="completed", output_data={"kind": runner.ctx["kind"], "result": runner.ctx["result"],
                                                      "run_id": runner.ctx["run_id"]},
                     completed_at=datetime.now(timezone.utc), duration_seconds=int(time.monotonic() - started))
@@ -327,18 +319,3 @@ def execute(execution_id: int):
         runner.save(status="failed", error_message=str(e),
                     completed_at=datetime.now(timezone.utc), duration_seconds=int(time.monotonic() - started))
 
-
-def _run_legacy(runner: _Runner, workflow_type: str, zapier_url: Optional[str], n8n_ref: Optional[str]):
-    kind = LEGACY_KIND[workflow_type]
-    node = {"id": "legacy", "type": "ai", "data": {"task": kind, "mode": "quick", "label": workflow_type}}
-    runner.run_ai(node)
-    # Legacy workflows keep the default approvals/alerts
-    with session_scope() as db:
-        for proposal in approvals.default_proposals(kind, runner.ctx["ai_input"], runner.ctx["result"]):
-            approvals.create(db, proposal, run_id=runner.ctx["run_id"], workflow_execution_id=runner.execution_id)
-    payload = {"workflow": runner.workflow, "input": runner.ctx["input"], "kind": kind, "result": runner.ctx["result"]}
-    for label, url in (("Zapier", zapier_url), ("n8n", n8n_ref)):
-        if url and url.startswith(("http://", "https://")):
-            res = post_webhook(payload, url)
-            runner.log({"id": label.lower(), "type": "action", "data": {"label": label}},
-                       "completed" if res["status"] == "success" else "failed", res["detail"])

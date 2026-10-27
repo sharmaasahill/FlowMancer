@@ -2,7 +2,7 @@
 
 import type { Node } from '@xyflow/react';
 import { Trash2 } from 'lucide-react';
-import { Field, buttonClass, inputClass } from '@/components/ui';
+import { Field } from '@/components/ui';
 import { RESULT_FIELDS } from '@/lib/workflowTemplates';
 
 interface Props {
@@ -22,12 +22,12 @@ export default function NodeSettings({ node, aiTasks, onChange, onDelete }: Prop
   return (
     <div className="space-y-4">
       <Field label="Label" htmlFor={id('label')}>
-        <input id={id('label')} className={inputClass} value={d.label || ''} onChange={(e) => set('label', e.target.value)} />
+        <input id={id('label')} className="field" value={d.label || ''} onChange={(e) => set('label', e.target.value)} />
       </Field>
 
       {node.type === 'trigger' && (
         <Field label="Starts when" htmlFor={id('trigger')} hint="Every workflow can also be run by hand or through the API">
-          <select id={id('trigger')} className={inputClass} value={d.trigger} onChange={(e) => set('trigger', e.target.value)}>
+          <select id={id('trigger')} className="field" value={d.trigger} onChange={(e) => set('trigger', e.target.value)}>
             <option value="manual">Run manually / API</option>
             <option value="form">Website form submission</option>
             <option value="inbox">New email in the inbox</option>
@@ -39,14 +39,14 @@ export default function NodeSettings({ node, aiTasks, onChange, onDelete }: Prop
       {node.type === 'ai' && (
         <>
           <Field label="Task" htmlFor={id('task')}>
-            <select id={id('task')} className={inputClass} value={d.task} onChange={(e) => set('task', e.target.value)}>
+            <select id={id('task')} className="field" value={d.task} onChange={(e) => set('task', e.target.value)}>
               <option value="lead">Qualify lead</option>
               <option value="email">Process email</option>
               <option value="document">Process document</option>
             </select>
           </Field>
           <Field label="Mode" htmlFor={id('mode')}>
-            <select id={id('mode')} className={inputClass} value={d.mode || 'quick'} onChange={(e) => set('mode', e.target.value)}>
+            <select id={id('mode')} className="field" value={d.mode || 'quick'} onChange={(e) => set('mode', e.target.value)}>
               <option value="quick">Quick (one AI call)</option>
               <option value="crew">Crew (4 agents, slower)</option>
             </select>
@@ -57,11 +57,11 @@ export default function NodeSettings({ node, aiTasks, onChange, onDelete }: Prop
       {node.type === 'condition' && (
         <>
           <Field label="Field" htmlFor={id('field')} hint="A result field from the AI step, or input.<name> for the raw input">
-            <input id={id('field')} list={id('fields')} className={inputClass} value={d.field || ''} onChange={(e) => set('field', e.target.value)} />
+            <input id={id('field')} list={id('fields')} className="field" value={d.field || ''} onChange={(e) => set('field', e.target.value)} />
             <datalist id={id('fields')}>{fieldOptions.map((f) => <option key={f} value={f} />)}</datalist>
           </Field>
           <Field label="Operator" htmlFor={id('op')}>
-            <select id={id('op')} className={inputClass} value={d.operator} onChange={(e) => set('operator', e.target.value)}>
+            <select id={id('op')} className="field" value={d.operator} onChange={(e) => set('operator', e.target.value)}>
               <option value="eq">equals</option>
               <option value="neq">does not equal</option>
               <option value="gt">greater than</option>
@@ -75,17 +75,17 @@ export default function NodeSettings({ node, aiTasks, onChange, onDelete }: Prop
           </Field>
           {!['is_true', 'is_false'].includes(d.operator) && (
             <Field label="Value" htmlFor={id('value')}>
-              <input id={id('value')} className={inputClass} value={d.value ?? ''} onChange={(e) => set('value', e.target.value)} />
+              <input id={id('value')} className="field" value={d.value ?? ''} onChange={(e) => set('value', e.target.value)} />
             </Field>
           )}
-          <p className="text-xs text-gray-500">Connect the green handle for &quot;yes&quot; and the red handle for &quot;no&quot;.</p>
+          <p className="text-xs text-fog">Connect the green handle for &quot;yes&quot; and the red handle for &quot;no&quot;.</p>
         </>
       )}
 
       {node.type === 'action' && (
         <>
           <Field label="Action" htmlFor={id('action')}>
-            <select id={id('action')} className={inputClass} value={d.action} onChange={(e) => set('action', e.target.value)}>
+            <select id={id('action')} className="field" value={d.action} onChange={(e) => set('action', e.target.value)}>
               <option value="slack">Post Slack message</option>
               <option value="webhook">Call a webhook (Zapier, n8n, Make)</option>
               <option value="crm">Create HubSpot contact (no approval)</option>
@@ -95,17 +95,17 @@ export default function NodeSettings({ node, aiTasks, onChange, onDelete }: Prop
           </Field>
           {(d.action === 'slack' || (d.action === 'approval' && d.approval_action === 'slack_message')) && (
             <Field label="Message" htmlFor={id('text')} hint="Use {input.name}, {result.lead_score}, {result.summary}, ...">
-              <textarea id={id('text')} rows={3} className={inputClass} value={d.text || ''} onChange={(e) => set('text', e.target.value)} />
+              <textarea id={id('text')} rows={3} className="field" value={d.text || ''} onChange={(e) => set('text', e.target.value)} />
             </Field>
           )}
           {d.action === 'webhook' && (
             <Field label="Webhook URL" htmlFor={id('url')}>
-              <input id={id('url')} type="url" className={inputClass} value={d.url || ''} onChange={(e) => set('url', e.target.value)} placeholder="https://hooks.zapier.com/..." />
+              <input id={id('url')} type="url" className="field" value={d.url || ''} onChange={(e) => set('url', e.target.value)} placeholder="https://hooks.zapier.com/..." />
             </Field>
           )}
           {d.action === 'approval' && (
             <Field label="What to approve" htmlFor={id('approval')}>
-              <select id={id('approval')} className={inputClass} value={d.approval_action || ''} onChange={(e) => set('approval_action', e.target.value)}>
+              <select id={id('approval')} className="field" value={d.approval_action || ''} onChange={(e) => set('approval_action', e.target.value)}>
                 <option value="" disabled>Choose...</option>
                 <option value="email_reply">Reply draft (needs an email step)</option>
                 <option value="crm_contact">CRM contact (needs a lead step)</option>
@@ -118,7 +118,7 @@ export default function NodeSettings({ node, aiTasks, onChange, onDelete }: Prop
       )}
 
       {node.type !== 'trigger' && (
-        <button type="button" onClick={onDelete} className={buttonClass.danger}>
+        <button type="button" onClick={onDelete} className="btn-danger">
           <Trash2 className="h-4 w-4" aria-hidden /> Delete step
         </button>
       )}

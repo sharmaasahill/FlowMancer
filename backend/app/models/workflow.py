@@ -7,20 +7,14 @@ from app.core.database import Base
 
 
 class Workflow(Base):
-    """An automation workflow. `config` holds the visual graph (nodes + edges) for custom workflows."""
+    """An automation workflow. `config` holds the visual graph (nodes + edges)."""
     __tablename__ = "workflows"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    # lead_qualification | email_processing | document_automation | custom
-    workflow_type = Column(String(50), nullable=False)
     config = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True)
-
-    # Legacy integration settings (used when the workflow has no graph)
-    n8n_workflow_id = Column(String(255), nullable=True)
-    zapier_webhook_url = Column(String(500), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

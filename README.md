@@ -1,8 +1,8 @@
 # FlowMancer
 
-**AI-Powered Multi-Agent Workflow Orchestrator**
+**AI that reads your leads, emails and documents, and proposes what to do next. A person approves before anything goes out.**
 
-FlowMancer reads your business inputs (sales leads, emails, documents), works out what they mean and proposes what to do next. A person approves before anything is sent. It runs on a free local model through [Ollama](https://ollama.com) by default; OpenAI is one setting away.
+FlowMancer researches a sales lead on the web, triages an email against your own policies, or checks an invoice. It returns a structured verdict (scores, categories, totals) and proposes an action: a CRM contact, a reply draft, a Finance sign-off. Nothing is sent until someone approves it.
 
 ![CI](https://github.com/sharmaasahill/FlowMancer/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
@@ -15,99 +15,141 @@ FlowMancer reads your business inputs (sales leads, emails, documents), works ou
 
 | Input | FlowMancer returns | Then proposes |
 |-------|--------------------|---------------|
-| **Lead** (website form) | Score 0-100 with a per-category breakdown, level, owning team, next step, talking points, a company summary from **real web research** with source links | Add to HubSpot (approval). Slack alert if hot. |
-| **Email** (inbox or pasted) | Category, priority, sentiment, owning team, and a **reply grounded in your knowledge base** | Save the reply as a Gmail/Outlook draft (approval). Slack alert if urgent. |
-| **Document** (PDF upload or text) | Type, issuer, number, dates, line items, tax, total. **Totals are checked in code.** | Finance/Legal approval when the policy requires it. |
+| **Lead** (website form, Studio, API) | Score 0–100 broken down into six categories, owning team, next step, talking points, and a company summary from **live web research**, with source links | Add to HubSpot (needs approval). Slack alert if the score is 80+ |
+| **Email** (IMAP inbox or pasted) | Category, priority, sentiment, owning team, and a **reply grounded in your knowledge base** | Save the reply to your Gmail/Outlook Drafts (needs approval). Slack alert if urgent |
+| **Document** (PDF upload or text) | Type, issuer, number, dates, line items, tax and total, with **totals checked in code** | Finance or Legal approval when the policy requires it |
 
-### Features
-- **Structured output.** The model fills a JSON schema, so results are real fields you can sort, chart and branch on. Rules a small model gets wrong (adding up scores, checking totals, approval policy) are applied in code.
-- **Real research.** Leads are researched with DuckDuckGo search (no API key needed) plus the company's own website (taken from the email domain). Sources are stored and shown, and the model is told to use only those facts.
-- **Two modes.** `quick` makes one AI call and takes seconds. `crew` runs a CrewAI pipeline of 4 specialist agents, which takes minutes on a local model. Both show **live step-by-step progress** in the UI via Server-Sent Events.
-- **Knowledge base (RAG).** Upload pricing, policies or FAQs (PDF/TXT/MD/CSV/HTML). Content is chunked, embedded locally with ChromaDB and retrieved per request.
-- **Human approval.** Proposed actions wait in an Approvals queue where you can edit, approve or reject them. Nothing goes out until approved.
-- **Triggers.** Website form webhook, IMAP inbox polling (Gmail/Outlook app password), generic workflow webhooks, file upload.
-- **Actions.** Slack incoming webhooks, HubSpot contact upsert, mailbox reply drafts (IMAP), outbound webhooks for Zapier, n8n and Make.
-- **Visual workflow builder.** Drag-and-drop graph of trigger, AI step, condition and action nodes, with templates. Workflows are validated on save (one trigger, no loops) and runs show a per-step log.
-- **Dashboard and history.** Real statistics and charts, plus a searchable history of every run with input, result, steps and sources.
-- **Tests and CI.** 50+ backend tests with a fake model (no Ollama needed), and a GitHub Actions workflow that runs the tests and the frontend lint and build.
+Measured on 10 test cases with the default Gemini model: all 10 correct, 2–8 seconds each in quick mode. The same cases on a local 3B model were slower (20–70 s) and got several wrong. In particular, the local model labelled a refund request as spam, scored a 300-person enterprise lead 25/100, and missed an invoice whose lines didn't add up.
 
-### Tech stack
-- **Backend**: FastAPI, SQLAlchemy (SQLite locally, PostgreSQL in Docker), CrewAI, LangChain, ChromaDB, ddgs, pdfplumber
-- **AI**: Ollama `llama3.2` (default) or OpenAI
-- **Frontend**: Next.js 14, TypeScript, Tailwind CSS, React Flow (`@xyflow/react`), Recharts
+## Features
+
+- **Structured output.** The model fills a JSON schema, so results are real fields you can sort, chart and branch on. Rules a model can get wrong are done in code: adding up the score, checking that line items plus tax equal the total, and the approval policy.
+- **Gemini with automatic fallback.** The default is Google's free Gemini tier. If the main model is busy or rate-limited, FlowMancer retries on a backup Gemini model, then optionally on a local Ollama model. Only temporary errors trigger a fallback; a bad API key fails immediately with a clear message.
+- **Two modes.** `quick` is one AI pass. `crew` is a CrewAI pipeline of four specialist agents working in sequence (Analyzer → Research → Scoring → Routing for leads).
+- **Live progress.** Every step, including each crew agent, streams to the browser over Server-Sent Events.
+- **Real research.** DuckDuckGo search (no key needed) plus the company website taken from the email domain. Sources are stored and shown, and private network addresses are never fetched.
+- **Knowledge base (RAG).** Upload pricing, policies or FAQs. They're chunked, embedded locally with ChromaDB and quoted in replies.
+- **Human approval queue.** Edit a proposed reply or contact, then approve or reject it.
+- **Triggers:** website form webhook, IMAP inbox polling, per-workflow webhooks, file upload.
+- **Actions:** Slack, HubSpot, mailbox reply drafts, and outbound webhooks for Zapier, n8n and Make.
+- **Visual workflow builder.** Drag-and-drop trigger, AI, condition and action steps, with templates. Graphs are validated on save (one trigger, no loops), and a test run lights up the path it took.
+- **Dashboard.** Live counts, activity charts, an AI status panel and full run history.
+- **Tests.** 63 backend tests that use a fake model, so they run in about 10 seconds with no API key. CI also lints and builds the frontend.
+
+## Tech stack
+
+| Layer | Tools |
+|-------|-------|
+| Backend | FastAPI, SQLAlchemy (SQLite locally, PostgreSQL in Docker), Pydantic |
+| AI | Google Gemini via `langchain-google-genai`, CrewAI, optional Ollama |
+| Retrieval | ChromaDB (local embeddings), DuckDuckGo (`ddgs`), pdfplumber |
+| Frontend | Next.js 14, TypeScript, Tailwind CSS, Framer Motion, React Flow, Recharts |
 
 ---
 
-## Quick start (local)
+## Quick start
 
-**Prerequisites:** Python 3.11+, Node.js 18+, [Ollama](https://ollama.com/download)
+**You need:** Python 3.11+, Node.js 18+, and a free Gemini API key from [Google AI Studio](https://aistudio.google.com) ("Get API key").
+
+### 1. Backend
 
 ```bash
-# 1. AI model (keep the Ollama app running)
-ollama pull llama3.2
-
-# 2. Backend
 cd backend
 python -m venv venv
-source venv/Scripts/activate        # Windows Git Bash; macOS/Linux: source venv/bin/activate
-pip install -r requirements-dev.txt
-cp env.example .env
-python test_setup.py                 # two [OK] lines = config + model working
-uvicorn app.main:app --reload
+venv/Scripts/python.exe -m pip install -r requirements-dev.txt     # macOS/Linux: venv/bin/python
+cp env.example .env              # then put your key in GEMINI_API_KEY
+venv/Scripts/python.exe check_setup.py                             # two [OK] lines = ready
+venv/Scripts/python.exe -m uvicorn app.main:app --reload
+```
 
-# 3. Frontend (new terminal)
+The API runs at http://localhost:8000, with interactive docs at `/api/docs`.
+
+### 2. Frontend (new terminal)
+
+```bash
 cd frontend
 npm install
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
 npm run dev
 ```
 
-Open http://localhost:3000 (dashboard) and http://localhost:8000/api/docs (API).
+Open **http://localhost:3000**. Go to **Studio**, click an example such as "Refund request", and press the button to watch it work.
 
-The first knowledge-base upload downloads a small embedding model (~80 MB) once.
+> **Windows tip:** call the venv's Python directly (`venv/Scripts/python.exe -m uvicorn ...`) instead of `uvicorn`. Some terminals (MSYS2/UCRT64) and Windows Smart App Control block the bare `.exe` launchers.
 
-### Run the tests
+### Tests
+
 ```bash
-cd backend && python -m pytest          # ~10 s, no Ollama or network needed
+cd backend && venv/Scripts/python.exe -m pytest     # ~10 s, no API key or network needed
 cd frontend && npm run lint && npm run build
 ```
 
 ---
 
-## Configuration (`backend/.env`)
+## Configuration
 
-All settings are listed in [`backend/env.example`](backend/env.example). The main ones:
+Everything lives in `backend/.env`. Only `GEMINI_API_KEY` is required. [`backend/env.example`](backend/env.example) lists every setting.
 
-| Variable | Purpose |
-|----------|---------|
-| `AI_PROVIDER` | `ollama` (default) or `openai` (+ `OPENAI_API_KEY`, `OPENAI_MODEL`) |
-| `OLLAMA_MODEL` | Any pulled model, e.g. `llama3.2`, `llama3.1:8b` (better, slower) |
-| `RESEARCH_ENABLED` | Web research for leads. **Sends the company name and email domain to DuckDuckGo.** |
-| `IMAP_HOST`, `IMAP_USER`, `IMAP_PASSWORD` | Inbox trigger and reply drafts. Gmail: `imap.gmail.com` + an [App Password](https://myaccount.google.com/apppasswords) |
-| `INBOX_POLL_SECONDS` | Auto-check the inbox every N seconds (0 = only on "Check inbox now") |
-| `SLACK_WEBHOOK_URL` | [Slack incoming webhook](https://api.slack.com/messaging/webhooks) |
-| `HUBSPOT_ACCESS_TOKEN` | HubSpot Private App token with `crm.objects.contacts.write` |
-| `ZAPIER_WEBHOOK_URL` | Default outbound webhook (Zapier / n8n / Make) |
-| `TRIGGER_SECRET` | If set, form/webhook triggers require `?secret=` or `X-FlowMancer-Secret` |
-| `HOT_LEAD_THRESHOLD`, `DOCUMENT_APPROVAL_AMOUNT` | Business rules (defaults 80 and 1000) |
+| Setting | Purpose | Default |
+|---------|---------|---------|
+| `GEMINI_API_KEY` | Free key from Google AI Studio | **required** |
+| `GEMINI_MODEL` | Main model | `gemini-3.5-flash-lite` |
+| `GEMINI_FALLBACK_MODEL` | Used when the main model is busy (empty = none) | `gemini-3.1-flash-lite` |
+| `OLLAMA_FALLBACK` | Use the local Ollama model as a last resort | `false` |
+| `AI_PROVIDER` | `gemini`, or `ollama` to run fully offline | `gemini` |
+| `SLACK_WEBHOOK_URL` | [Slack incoming webhook](https://api.slack.com/messaging/webhooks) | - |
+| `HUBSPOT_ACCESS_TOKEN` | HubSpot Private App token (`crm.objects.contacts.write`) | - |
+| `WEBHOOK_URL` | Default outbound webhook (Zapier / n8n / Make) | - |
+| `IMAP_HOST` / `IMAP_USER` / `IMAP_PASSWORD` | Inbox trigger and reply drafts. Gmail: `imap.gmail.com` + an [App Password](https://myaccount.google.com/apppasswords) | - |
+| `TRIGGER_SECRET` | Require a secret on the public form and webhook triggers | - |
 
-Integrations that aren't configured are skipped and reported as "skipped"; nothing crashes. The **Integrations** page shows what's connected.
+Integrations you haven't set up are reported as "skipped" and never break a run. The **Integrations** page shows what's connected.
+
+**About the Gemini free tier:** it has per-minute and per-day request limits, and Google may use free-tier requests to improve its products. Don't send real customer data through it. Quick mode uses 1 request per item; crew mode uses about 5.
 
 ---
 
+## How it works
+
+```
+ Triggers                    Pipeline                                    Outcomes
+ ────────                    ────────                                    ────────
+ Website form ─┐     ┌─ Research (web + company site) ─┐
+ Inbox (IMAP) ─┼────▶│  Knowledge base (ChromaDB)      ├─▶ quick: 1 call ──┐   ┌─▶ Slack alert (automatic)
+ Webhook ──────┤     └─────────────────────────────────┘   crew: 4 agents ─┼──▶│
+ Studio / API ─┘                                                           │   └─▶ Approval queue ─▶ HubSpot · mail draft
+                      Gemini (→ backup model → Ollama)                     │                         Slack · webhook
+                      structured result + rules in code ◀──────────────────┘
+                                     │
+                      Visual workflows: trigger → AI → condition → actions
+```
+
+```
+backend/app/
+  agents/        prompts and crew definitions per use case
+  api/           routes: use_cases, runs, approvals, knowledge, triggers, workflows, executions, system
+  core/          settings, database, llm (Gemini/Ollama + fallback chain)
+  integrations/  slack, hubspot, webhook, mail (IMAP)
+  models/        Run, Approval, Workflow, WorkflowExecution, KnowledgeDocument
+  schemas/       API schemas + the structured AI result schemas
+  services/      processing pipeline, runs, approvals, research, knowledge, workflow engine, inbox, stats
+backend/tests/   pytest suite (fake model, fake embeddings)
+frontend/src/
+  app/           pages: overview, studio, history, workflows (+ builder), approvals, knowledge, integrations
+  components/    shell (sidebar, command palette), Studio, run timeline/result, workflow builder, charts
+  lib/           API client, live-run hook, examples, workflow templates
+```
+
 ## API overview
 
-| Endpoint | Description |
-|----------|-------------|
+| Endpoint | What it does |
+|----------|--------------|
 | `POST /api/use-cases/qualify-lead` · `process-email` · `process-document` `?mode=quick\|crew` | Process and wait for the result |
-| `POST /api/use-cases/jobs/{lead\|email\|document}?mode=` | Start in the background, returns a run |
+| `POST /api/use-cases/jobs/{lead\|email\|document}` | Start in the background; returns a run id |
 | `POST /api/use-cases/process-document/upload` | Upload a file (multipart) |
-| `GET /api/runs` · `/api/runs/{id}` · `/api/runs/{id}/events` | History, details, live SSE stream |
+| `GET /api/runs` · `/api/runs/{id}` · `/api/runs/{id}/events` | History, one run, live SSE stream |
 | `GET /api/approvals?status=pending` · `POST /api/approvals/{id}/approve\|reject` | Approval queue |
 | `GET\|POST\|DELETE /api/knowledge…` · `GET /api/knowledge/search?q=` | Knowledge base |
-| `POST /api/triggers/form` | Website form (JSON or form-encoded) |
-| `POST /api/triggers/webhook/{workflow_id}` | Run a workflow from any system |
-| `POST /api/triggers/inbox/poll` | Check the inbox now |
+| `POST /api/triggers/form` · `/api/triggers/webhook/{workflow_id}` · `/api/triggers/inbox/poll` | Triggers |
 | `GET\|POST\|PUT\|DELETE /api/workflows…` · `POST /api/workflows/{id}/run` · `GET /api/executions/{id}` | Workflows |
 | `GET /api/stats` · `GET /api/integrations` | Dashboard data and status |
 
@@ -117,61 +159,25 @@ curl -X POST http://localhost:8000/api/use-cases/qualify-lead \
   -d '{"name":"Priya Sharma","email":"priya@stripe.com","company":"Stripe","message":"Automate lead routing for our 300-person sales team this quarter. Budget approved."}'
 ```
 
----
-
-## Architecture
-
-```
- Triggers                    AI pipeline                         Outcomes
- ─────────                   ───────────                         ────────
- Website form ─┐      ┌─ Research (web + site) ─┐
- Inbox (IMAP) ─┼─────▶│  Knowledge (ChromaDB)   ├─▶ quick: 1 call ─┐   ┌─▶ Slack alerts (automatic)
- Webhook ──────┤      └─────────────────────────┘   crew: 4 agents ─┼──▶│
- Upload / UI ──┘                                                    │   └─▶ Approvals ─▶ HubSpot / mail draft /
-                          structured result + code rules ◀──────────┘                    Slack / webhook
-                                     │
-                          Visual workflows (trigger → AI → condition → actions)
-```
-
-```
-backend/app/
-  agents/        prompts + crew definitions per use case
-  api/           routes: use_cases, runs, approvals, knowledge, triggers, workflows, executions, system
-  core/          config, database, llm (provider factory)
-  integrations/  slack, hubspot, webhook, mail (IMAP)
-  models/        SQLAlchemy models (Run, Approval, Workflow, ...)
-  schemas/       request/response + structured AI result schemas
-  services/      processing pipeline, runs, approvals, research, knowledge, engine, inbox, stats
-backend/tests/   pytest suite (fake model, fake embeddings)
-frontend/src/
-  app/           pages: dashboard, use-cases, workflows (+ builder), approvals, history, knowledge, integrations
-  components/    UI, run timeline/result, workflow builder
-  lib/           API client, SSE hook, templates
-```
-
----
-
 ## Docker
 
-Ollama keeps running on your machine; the backend container reaches it through `host.docker.internal`.
-
 ```bash
-cp backend/env.example backend/.env
+cp backend/env.example backend/.env    # add GEMINI_API_KEY
 docker compose up -d --build
 ```
+
+This starts PostgreSQL, the backend on port 8000 and the frontend on port 3000.
 
 ---
 
 ## Known limitations
 
-- **No authentication yet.** Every endpoint is open to anyone who can reach port 8000. Keep it on your machine or a private network until auth is added (stage 4). `TRIGGER_SECRET` protects only the public triggers.
-- **Local model quality.** `llama3.2` (3B) is fast and free but makes mistakes. Scoring is constrained to fixed values and documents are checked in code to compensate. A larger model (`llama3.1:8b`) or OpenAI gives better results.
-- **Crew mode is slow on CPU**: about 5-10 minutes per item with a local model.
-- **Scanned PDFs** (images) aren't supported. There's no OCR yet.
-- **Inbox** uses IMAP with app passwords, not OAuth. Emails are marked as read when fetched.
-- **One backend process.** The knowledge store is a local ChromaDB folder, so don't run two backend instances on the same data.
-
----
+- **No login yet.** Every endpoint is open to anyone who can reach port 8000, so keep it on your machine. `TRIGGER_SECRET` protects only the public triggers.
+- **Research is best-effort.** Web results can be outdated or about a different company with the same name. Sources are shown so a person can check them.
+- **Scanned PDFs** (images) need OCR, which isn't included.
+- **The inbox uses IMAP app passwords,** not OAuth. Fetched emails are marked as read.
+- **Run one backend process.** The knowledge store is a local folder.
+- **The Docker setup and the Slack/HubSpot/IMAP integrations** are tested with fakes in the test suite, not against live accounts.
 
 ## Author
 

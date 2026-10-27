@@ -7,7 +7,7 @@ from app.core.config import settings
 
 
 def post_webhook(data: Any, url: Optional[str] = None) -> dict:
-    target = url or settings.ZAPIER_WEBHOOK_URL
+    target = url or settings.WEBHOOK_URL
     if not target:
         return {"status": "skipped", "detail": "No webhook URL configured"}
     if not target.startswith(("https://", "http://")):

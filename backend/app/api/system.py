@@ -1,16 +1,21 @@
 """
 Dashboard stats and integration status.
 """
+import time
+
 import httpx
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core import llm
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.llm import model_label
 from app.services import inbox, stats
 
 router = APIRouter(tags=["system"])
+
+_AI_CACHE: dict = {"at": 0.0, "value": None}
+AI_CACHE_SECONDS = 60
 
 
 @router.get("/stats")
@@ -18,22 +23,50 @@ def get_stats(db: Session = Depends(get_db)):
     return stats.compute(db)
 
 
+def _check_gemini(model: str) -> tuple[bool, str]:
+    """Metadata lookup only; it doesn't spend any generation quota."""
+    if not settings.GEMINI_API_KEY:
+        return False, "GEMINI_API_KEY is not set in backend/.env"
+    try:
+        resp = httpx.get(f"https://generativelanguage.googleapis.com/v1beta/models/{model}",
+                         headers={"x-goog-api-key": settings.GEMINI_API_KEY}, timeout=5)
+    except httpx.HTTPError:
+        return False, "Can't reach Google AI. Check your internet connection."
+    if resp.status_code == 200:
+        return True, "Connected"
+    if resp.status_code in (400, 401, 403):
+        return False, "Gemini rejected the API key"
+    if resp.status_code == 404:
+        return False, f"Model '{model}' isn't available to this key. Change GEMINI_MODEL."
+    return False, f"Gemini returned HTTP {resp.status_code}"
+
+
+def _check_ollama() -> tuple[bool, str]:
+    try:
+        names = [m.get("name", "") for m in
+                 httpx.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=2).json().get("models", [])]
+    except (httpx.HTTPError, ValueError):
+        return False, "Ollama is not running"
+    pulled = any(n.split(":")[0] == settings.OLLAMA_MODEL.split(":")[0] for n in names)
+    return pulled, "Model ready" if pulled else f"Run: ollama pull {settings.OLLAMA_MODEL}"
+
+
 def _ai_status() -> dict:
-    provider = settings.AI_PROVIDER.lower()
-    info = {"provider": provider, "model": model_label(), "reachable": None, "detail": ""}
-    if provider == "ollama":
-        try:
-            resp = httpx.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=2)
-            names = [m.get("name", "") for m in resp.json().get("models", [])]
-            pulled = any(n.split(":")[0] == settings.OLLAMA_MODEL.split(":")[0] for n in names)
-            info["reachable"] = True
-            info["detail"] = "Model ready" if pulled else f"Run: ollama pull {settings.OLLAMA_MODEL}"
-        except (httpx.HTTPError, ValueError):
-            info.update(reachable=False, detail="Ollama is not running")
-    else:
-        info.update(reachable=bool(settings.OPENAI_API_KEY),
-                    detail="API key set" if settings.OPENAI_API_KEY else "OPENAI_API_KEY missing")
-    return info
+    now = time.monotonic()
+    if _AI_CACHE["value"] and now - _AI_CACHE["at"] < AI_CACHE_SECONDS:
+        return _AI_CACHE["value"]
+    chain = llm.targets()
+    main = chain[0]
+    ok, detail = _check_gemini(main.model) if main.provider == "gemini" else _check_ollama()
+    value = {
+        "provider": main.provider,
+        "model": main.label,
+        "fallbacks": [t.label for t in chain[1:]],
+        "reachable": ok,
+        "detail": detail,
+    }
+    _AI_CACHE.update(at=now, value=value)
+    return value
 
 
 @router.get("/integrations")
@@ -43,7 +76,7 @@ def integrations():
         "research": {"enabled": settings.RESEARCH_ENABLED, "engine": "DuckDuckGo + company website"},
         "slack": {"configured": bool(settings.SLACK_WEBHOOK_URL)},
         "hubspot": {"configured": bool(settings.HUBSPOT_ACCESS_TOKEN)},
-        "webhook": {"configured": bool(settings.ZAPIER_WEBHOOK_URL)},
+        "webhook": {"configured": bool(settings.WEBHOOK_URL)},
         "mailbox": inbox.status(),
         "triggers": {
             "secret_required": bool(settings.TRIGGER_SECRET),

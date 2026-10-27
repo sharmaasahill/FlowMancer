@@ -1,23 +1,26 @@
 """
 Pydantic schemas for API request/response validation
 """
-from typing import Optional, Dict, Any, List, Literal
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timezone
+from typing import Annotated
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, EmailStr
 
 
-WorkflowType = Literal["lead_qualification", "email_processing", "document_automation", "custom"]
+def _as_utc(value: datetime) -> datetime:
+    # The database stores UTC without an offset; mark it so clients don't read it as local time
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+
+UTCDateTime = Annotated[datetime, AfterValidator(_as_utc)]
 
 
 # ---------- Workflows ----------
 class WorkflowBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    workflow_type: WorkflowType = "custom"
     config: Optional[Dict[str, Any]] = Field(None, description="Visual graph: {nodes: [...], edges: [...]}")
     is_active: bool = True
-    n8n_workflow_id: Optional[str] = None
-    zapier_webhook_url: Optional[str] = None
 
 
 class WorkflowCreate(WorkflowBase):
@@ -27,27 +30,19 @@ class WorkflowCreate(WorkflowBase):
 class WorkflowUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    workflow_type: Optional[WorkflowType] = None
     config: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
-    n8n_workflow_id: Optional[str] = None
-    zapier_webhook_url: Optional[str] = None
 
 
 class WorkflowResponse(WorkflowBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UTCDateTime
+    updated_at: Optional[UTCDateTime] = None
 
 
 # ---------- Executions ----------
-class WorkflowExecutionCreate(BaseModel):
-    workflow_id: int
-    input_data: Dict[str, Any]
-
-
 class WorkflowRunRequest(BaseModel):
     input_data: Dict[str, Any]
 
@@ -62,8 +57,8 @@ class WorkflowExecutionResponse(BaseModel):
     output_data: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     agent_logs: Optional[List[Dict[str, Any]]] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: Optional[UTCDateTime] = None
+    completed_at: Optional[UTCDateTime] = None
     duration_seconds: Optional[int] = None
 
 
@@ -113,8 +108,8 @@ class RunResponse(BaseModel):
     ai_model: Optional[str] = None
     error: Optional[str] = None
     workflow_execution_id: Optional[int] = None
-    created_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    created_at: Optional[UTCDateTime] = None
+    completed_at: Optional[UTCDateTime] = None
     duration_seconds: Optional[float] = None
 
 
@@ -136,8 +131,8 @@ class ApprovalResponse(BaseModel):
     status: str
     result: Optional[Dict[str, Any]] = None
     note: Optional[str] = None
-    created_at: Optional[datetime] = None
-    decided_at: Optional[datetime] = None
+    created_at: Optional[UTCDateTime] = None
+    decided_at: Optional[UTCDateTime] = None
 
 
 class ApprovalDecision(BaseModel):
@@ -158,4 +153,4 @@ class KnowledgeDocumentResponse(BaseModel):
     name: str
     characters: int
     chunks: int
-    created_at: Optional[datetime] = None
+    created_at: Optional[UTCDateTime] = None

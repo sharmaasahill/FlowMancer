@@ -13,13 +13,12 @@ import pytest
 
 _TMP = Path(tempfile.mkdtemp(prefix="flowmancer-tests-"))
 os.environ.update({
-    "SECRET_KEY": "test", "JWT_SECRET_KEY": "test",
     "DATABASE_URL": f"sqlite:///{(_TMP / 'test.db').as_posix()}",
     "KNOWLEDGE_PATH": str(_TMP / "knowledge"),
     "RESEARCH_ENABLED": "false",
-    "SLACK_WEBHOOK_URL": "", "HUBSPOT_ACCESS_TOKEN": "", "ZAPIER_WEBHOOK_URL": "",
+    "SLACK_WEBHOOK_URL": "", "HUBSPOT_ACCESS_TOKEN": "", "WEBHOOK_URL": "",
     "IMAP_HOST": "", "IMAP_USER": "", "IMAP_PASSWORD": "", "INBOX_POLL_SECONDS": "0",
-    "TRIGGER_SECRET": "", "AI_PROVIDER": "ollama",
+    "TRIGGER_SECRET": "", "AI_PROVIDER": "gemini", "GEMINI_API_KEY": "", "OLLAMA_FALLBACK": "false",
     "CREWAI_DISABLE_TELEMETRY": "true", "OTEL_SDK_DISABLED": "true",
 })
 
@@ -149,8 +148,6 @@ def client():
 @pytest.fixture
 def http_calls(monkeypatch):
     """Capture outbound httpx.post calls from integrations instead of sending them."""
-    import httpx
-
     calls = []
 
     class Resp:

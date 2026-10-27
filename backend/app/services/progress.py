@@ -51,6 +51,13 @@ class StepTracker:
                 step["output"] = output[:4000]
         self._emit()
 
+    def reset(self, name: str):
+        """Put a step back to pending (used when a crew restarts on a backup model)."""
+        with self._lock:
+            step = self._find(name)
+            step.update(status="pending", started_at=None, finished_at=None, output=None)
+        self._emit()
+
     def skip(self, name: str, reason: str):
         with self._lock:
             step = self._find(name)

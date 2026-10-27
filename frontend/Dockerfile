@@ -1,23 +1,16 @@
-# Frontend Dockerfile
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm install
-
-# Copy application code
 COPY . .
 
-# Build the application
+# NEXT_PUBLIC_* values are baked into the build
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
-# Expose port
 EXPOSE 3000
-
-# Run the application
 CMD ["npm", "start"]
-

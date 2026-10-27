@@ -2,9 +2,162 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  color: #111827;
+@layer base {
+  :root {
+    color-scheme: dark;
+    /* Film grain used on the background and on art tiles */
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  html,
+  body {
+    @apply bg-noir-950 text-bone antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+
+  ::selection {
+    @apply bg-crimson/70 text-white;
+  }
+
+  /* Thin, quiet scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(242, 184, 181, 0.18) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(242, 184, 181, 0.16);
+    border-radius: 999px;
+  }
+
+  :focus-visible {
+    outline: 2px solid #f2b8b5;
+    outline-offset: 2px;
+    border-radius: 10px;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply text-bone;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-ash;
+  }
+  select option {
+    @apply bg-noir-850 text-bone;
+  }
+}
+
+@layer components {
+  /* Dark glass. The app frame does the blurring; cards only add a sheen (cheaper to render). */
+  .glass {
+    @apply rounded-3xl border border-white/[0.07] shadow-glass;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)), rgba(20, 16, 17, 0.55);
+  }
+  .glass-strong {
+    @apply rounded-3xl border border-white/[0.09] bg-noir-800/80 shadow-lift backdrop-blur-2xl;
+  }
+  .hairline {
+    @apply border-white/[0.07];
+  }
+
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.22em] text-fog;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-white/[0.08] bg-noir-950/50 px-3.5 py-2.5 text-sm outline-none transition
+      placeholder:text-ash hover:border-white/[0.14] focus:border-blush/50 focus:bg-noir-950/70 focus:ring-4 focus:ring-crimson/20;
+  }
+
+  .btn {
+    @apply relative inline-flex select-none items-center justify-center gap-2 overflow-hidden rounded-full px-4 py-2 text-sm font-semibold
+      transition duration-200 disabled:cursor-not-allowed disabled:opacity-45;
+  }
+  .btn-primary {
+    @apply btn bg-crimson text-white shadow-ember hover:bg-crimson-500 active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply btn border border-white/[0.09] bg-white/[0.03] text-bone hover:border-white/[0.16] hover:bg-white/[0.07] active:scale-[0.98];
+  }
+  .btn-quiet {
+    @apply btn text-fog hover:bg-white/[0.05] hover:text-bone;
+  }
+  .btn-danger {
+    @apply btn border border-coral/25 bg-coral/[0.06] text-coral hover:bg-coral/[0.12] active:scale-[0.98];
+  }
+  .btn-success {
+    @apply btn bg-bone text-noir-900 hover:bg-white active:scale-[0.98];
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs font-medium text-fog;
+  }
+
+  .grain {
+    background-image: var(--grain);
+    background-size: 220px 220px;
+  }
+
+  /* Cursor-following light on cards (see useSpotlight) */
+  .spotlight {
+    background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(214, 69, 69, 0.14), transparent 45%);
+  }
+}
+
+/* React Flow: dark crimson theme */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke-default: rgba(242, 184, 181, 0.32);
+  --xy-edge-stroke-selected-default: #f2b8b5;
+  --xy-connectionline-stroke-default: #f2b8b5;
+  --xy-handle-background-color-default: #f4ecec;
+  --xy-handle-border-color-default: #0e0a0b;
+  --xy-minimap-background-color-default: rgba(14, 10, 11, 0.85);
+  --xy-minimap-mask-background-color-default: rgba(7, 4, 5, 0.55);
+  --xy-minimap-node-background-color-default: rgba(155, 19, 19, 0.6);
+  --xy-controls-button-background-color-default: rgba(27, 21, 23, 0.9);
+  --xy-controls-button-background-color-hover-default: rgba(58, 45, 49, 0.9);
+  --xy-controls-button-color-default: #f4ecec;
+  --xy-controls-button-border-color-default: rgba(255, 255, 255, 0.06);
+  --xy-selection-background-color-default: rgba(155, 19, 19, 0.12);
+  --xy-selection-border-default: 1px dashed rgba(242, 184, 181, 0.5);
+}
+.react-flow__controls {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+}
+.react-flow__minimap {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.react-flow__attribution {
+  background: transparent !important;
+  color: #6e6366 !important;
+}
+.react-flow__attribution a {
+  color: #6e6366 !important;
+}
+.react-flow__edge.traversed path.react-flow__edge-path {
+  stroke: #e87878;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px rgba(214, 69, 69, 0.8));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

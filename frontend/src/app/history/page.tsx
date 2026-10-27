@@ -2,90 +2,84 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { ChevronRight, FileText, Mail, Users } from 'lucide-react';
+import { Empty, ErrorBanner, Loading, PageHeader, Segmented, StatusBadge } from '@/components/ui';
 import { errorMessage, runsApi } from '@/lib/api';
 import type { RunList } from '@/types';
-import { Card, Empty, ErrorBanner, PageHeader, Spinner, StatusBadge, buttonClass, inputClass } from '@/components/ui';
-import { formatDate, formatDuration, KIND_LABELS, summary } from '@/lib/utils';
+import { formatDuration, summary, timeAgo, verdict } from '@/lib/utils';
 
-const PAGE = 25;
+const PAGE = 20;
+const KIND_ICON = { lead: Users, email: Mail, document: FileText };
 
 export default function HistoryPage() {
-  const [kind, setKind] = useState('');
+  const [kind, setKind] = useState<'all' | 'lead' | 'email' | 'document'>('all');
   const [status, setStatus] = useState('');
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<RunList | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    runsApi.list({ kind: kind || undefined, status: status || undefined, limit: PAGE, offset })
+    runsApi.list({ kind: kind === 'all' ? undefined : kind, status: status || undefined, limit: PAGE, offset })
       .then((d) => { setData(d); setError(null); })
       .catch((e) => setError(errorMessage(e)));
   }, [kind, status, offset]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="History" subtitle="Every item FlowMancer has processed, with its input, result and steps" />
-      <div className="flex flex-wrap gap-3">
-        <div>
-          <label htmlFor="kind" className="sr-only">Type</label>
-          <select id="kind" value={kind} onChange={(e) => { setKind(e.target.value); setOffset(0); }} className={inputClass}>
-            <option value="">All types</option>
-            <option value="lead">Leads</option>
-            <option value="email">Emails</option>
-            <option value="document">Documents</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="status" className="sr-only">Status</label>
-          <select id="status" value={status} onChange={(e) => { setStatus(e.target.value); setOffset(0); }} className={inputClass}>
-            <option value="">All statuses</option>
-            <option value="completed">Completed</option>
-            <option value="running">Running</option>
-            <option value="queued">Queued</option>
-            <option value="failed">Failed</option>
-          </select>
-        </div>
+    <div className="space-y-8 pt-4">
+      <PageHeader eyebrow="History" title="Every item," accent="remembered."
+        subtitle="Input, verdict, sources and every step, for everything FlowMancer has processed." />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Segmented id="hist-kind" label="Type" value={kind} onChange={(k) => { setKind(k); setOffset(0); }}
+          options={[{ value: 'all', label: 'All' }, { value: 'lead', label: 'Leads' }, { value: 'email', label: 'Emails' }, { value: 'document', label: 'Documents' }]} />
+        <label htmlFor="status" className="sr-only">Status</label>
+        <select id="status" value={status} onChange={(e) => { setStatus(e.target.value); setOffset(0); }} className="field !w-auto !rounded-full !py-2">
+          <option value="">Any status</option>
+          <option value="completed">Completed</option>
+          <option value="running">Running</option>
+          <option value="queued">Queued</option>
+          <option value="failed">Failed</option>
+        </select>
+        {data && <span className="ml-auto font-mono text-xs text-fog">{data.total} item{data.total === 1 ? '' : 's'}</span>}
       </div>
+
       <ErrorBanner message={error} />
-      <Card className="overflow-x-auto p-0">
-        {!data ? <div className="flex justify-center py-12"><Spinner className="h-8 w-8 text-blue-600" /></div>
-          : data.items.length === 0 ? <Empty>Nothing here yet.</Empty> : (
-            <table className="w-full text-sm">
-              <thead className="border-b bg-gray-50 text-left text-gray-700">
-                <tr>
-                  <th scope="col" className="px-4 py-3">#</th>
-                  <th scope="col" className="px-4 py-3">Type</th>
-                  <th scope="col" className="px-4 py-3">Summary</th>
-                  <th scope="col" className="px-4 py-3">Mode</th>
-                  <th scope="col" className="px-4 py-3">Source</th>
-                  <th scope="col" className="px-4 py-3">When</th>
-                  <th scope="col" className="px-4 py-3">Took</th>
-                  <th scope="col" className="px-4 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {data.items.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3"><Link href={`/history/${r.id}`} className="font-semibold text-blue-700 hover:underline">{r.id}</Link></td>
-                    <td className="px-4 py-3">{KIND_LABELS[r.kind]}</td>
-                    <td className="max-w-md truncate px-4 py-3">{summary(r)}</td>
-                    <td className="px-4 py-3">{r.mode}</td>
-                    <td className="px-4 py-3">{r.source}</td>
-                    <td className="whitespace-nowrap px-4 py-3">{formatDate(r.created_at)}</td>
-                    <td className="px-4 py-3 tabular-nums">{formatDuration(r.duration_seconds)}</td>
-                    <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-      </Card>
+      <div className="glass overflow-hidden p-2">
+        {!data ? <Loading /> : data.items.length === 0 ? <Empty title="Nothing here yet">Process something in the Studio and it shows up here.</Empty> : (
+          <ul>
+            {data.items.map((r, i) => {
+              const Icon = KIND_ICON[r.kind];
+              return (
+                <motion.li key={r.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.025 }}>
+                  <Link href={`/history/${r.id}`}
+                    className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl px-4 py-3.5 transition hover:bg-white/[0.04] md:grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)_100px_90px_70px_auto]">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-blush transition group-hover:border-crimson-400/40 group-hover:bg-crimson/20">
+                      <Icon className="h-[18px] w-[18px]" aria-hidden />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-bone">{summary(r)}</span>
+                      <span className="block truncate font-mono text-[11px] text-fog">#{r.id} · {r.mode} · {r.source}</span>
+                    </span>
+                    <span className="hidden truncate text-sm text-bone/80 md:block">{r.status === 'completed' ? verdict(r) : r.error ? 'Error' : ''}</span>
+                    <span className="hidden text-xs text-fog md:block">{timeAgo(r.created_at)}</span>
+                    <span className="hidden font-mono text-xs tabular-nums text-fog md:block">{formatDuration(r.duration_seconds)}</span>
+                    <span className="hidden md:block"><StatusBadge status={r.status} /></span>
+                    <ChevronRight className="h-4 w-4 text-ash transition group-hover:translate-x-0.5 group-hover:text-blush" aria-hidden />
+                  </Link>
+                </motion.li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
       {data && data.total > PAGE && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">{offset + 1}-{Math.min(offset + PAGE, data.total)} of {data.total}</span>
+          <span className="font-mono text-xs text-fog">{offset + 1}–{Math.min(offset + PAGE, data.total)} of {data.total}</span>
           <div className="flex gap-2">
-            <button type="button" className={buttonClass.secondary} disabled={offset === 0} onClick={() => setOffset(offset - PAGE)}>Previous</button>
-            <button type="button" className={buttonClass.secondary} disabled={offset + PAGE >= data.total} onClick={() => setOffset(offset + PAGE)}>Next</button>
+            <button type="button" className="btn-ghost" disabled={offset === 0} onClick={() => setOffset(offset - PAGE)}>Previous</button>
+            <button type="button" className="btn-ghost" disabled={offset + PAGE >= data.total} onClick={() => setOffset(offset + PAGE)}>Next</button>
           </div>
         </div>
       )}

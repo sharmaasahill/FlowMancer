@@ -140,7 +140,8 @@ def process(kind: str, data: Dict, mode: str, tracker: StepTracker) -> Outcome:
     if mode not in MODES:
         raise ValueError(f"Unknown mode: {mode}")
 
-    outcome = Outcome(output={}, ai_model=llm_mod.model_label())
+    outcome = Outcome(output={})
+    llm_mod.reset_used()
 
     # 1. Context gathering
     research_text = ""
@@ -197,4 +198,5 @@ def process(kind: str, data: Dict, mode: str, tracker: StepTracker) -> Outcome:
 
     # 3. Business rules
     outcome.output = apply_rules(kind, result.model_dump(), data)
+    outcome.ai_model = llm_mod.used_label()
     return outcome

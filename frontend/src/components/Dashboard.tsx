@@ -2,155 +2,208 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts';
-import { Activity, CheckSquare, Clock, Gauge } from 'lucide-react';
-import { errorMessage, runsApi, systemApi } from '@/lib/api';
-import type { Integrations, Run, Stats } from '@/types';
-import { Card, Empty, ErrorBanner, PageHeader, Spinner, StatusBadge } from '@/components/ui';
-import { formatDate, formatDuration, KIND_LABELS, summary } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { ArrowRight, FileText, Mail, Users } from 'lucide-react';
+import ArtTile from '@/components/ArtTile';
+import { ActivityChart, CategoryBars, QUALITY_COLORS, QualityDonut } from '@/components/charts';
+import Orb from '@/components/Orb';
+import { CountUp, Empty, ErrorBanner, Loading, Panel, rise, stagger, StatusBadge } from '@/components/ui';
+import { approvalsApi, runsApi } from '@/lib/api';
+import { useSystem } from '@/lib/system';
+import type { Approval, Run } from '@/types';
+import { greeting, summary, timeAgo, verdict } from '@/lib/utils';
 
-const KIND_COLORS = { lead: '#2563eb', email: '#16a34a', document: '#d97706' };
-const LEVEL_COLORS: Record<string, string> = { High: '#16a34a', Medium: '#eab308', Low: '#9ca3af' };
+const KIND_ICON = { lead: Users, email: Mail, document: FileText };
 
-function StatCard({ label, value, icon: Icon, hint }: { label: string; value: string | number; icon: typeof Activity; hint?: string }) {
+function Stat({ label, value, decimals, suffix, hint }: {
+  label: string; value: number | null | undefined; decimals?: number; suffix?: string; hint?: string;
+}) {
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-600">{label}</p>
-        <Icon className="h-5 w-5 text-gray-400" aria-hidden />
-      </div>
-      <p className="mt-2 text-3xl font-bold tabular-nums text-gray-900">{value}</p>
-      {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
-    </div>
+    <motion.div variants={rise} className="glass rounded-[22px] px-5 py-4">
+      <p className="eyebrow !text-[10px]">{label}</p>
+      <p className="mt-2 font-display text-[34px] leading-none text-bone">
+        {value === null || value === undefined ? '-' : <CountUp value={value} decimals={decimals} suffix={suffix} />}
+      </p>
+      {hint && <p className="mt-1 text-xs text-fog">{hint}</p>}
+    </motion.div>
   );
 }
 
-function toRows(obj: Record<string, number>) {
-  return Object.entries(obj).filter(([k]) => k && k !== 'null').map(([name, value]) => ({ name, value }));
+function AICore({ recent, approvals }: { recent: Run[]; approvals: Approval[] }) {
+  const { integrations } = useSystem();
+  const ai = integrations?.ai;
+  const live = recent.filter((r) => r.status === 'running' || r.status === 'queued');
+  return (
+    <motion.aside variants={rise} className="glass relative self-start overflow-hidden p-6 xl:sticky xl:top-20">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 opacity-60" aria-hidden
+        style={{ background: 'radial-gradient(60% 80% at 50% 0%, rgba(155,19,19,0.45), transparent 70%)' }} />
+      <div className="relative flex flex-col items-center text-center">
+        <Orb size={92} state={live.length ? 'thinking' : ai?.reachable === false ? 'offline' : 'idle'} />
+        <p className="eyebrow mt-6">AI core</p>
+        <p className="mt-2 font-display text-[28px] leading-tight text-bone">{ai ? ai.model.replace(/ \(.*\)$/, '') : 'Connecting...'}</p>
+        <p className={`mt-1 text-sm ${ai?.reachable ? 'text-jade' : 'text-fog'}`}>
+          {ai ? (ai.reachable ? (live.length ? `Working on ${live.length} item${live.length > 1 ? 's' : ''}` : 'Online and idle') : ai.detail) : ' '}
+        </p>
+        {!!ai?.fallbacks.length && <p className="mt-1 text-xs text-ash">Backup: {ai.fallbacks.join(' → ')}</p>}
+      </div>
+
+      <div className="relative mt-7">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="eyebrow !text-[10px]">Recent activity</p>
+          <Link href="/history" className="text-xs font-semibold text-blush hover:underline">All</Link>
+        </div>
+        {recent.length === 0 ? <p className="py-4 text-center text-sm text-fog">Nothing yet</p> : (
+          <ul className="space-y-1">
+            {recent.slice(0, 5).map((r) => {
+              const Icon = KIND_ICON[r.kind];
+              return (
+                <li key={r.id}>
+                  <Link href={`/history/${r.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.04]">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-blush">
+                      <Icon className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-bone">{summary(r)}</span>
+                      <span className="block truncate text-xs text-fog">{r.status === 'completed' ? verdict(r) : r.status} · {timeAgo(r.created_at)}</span>
+                    </span>
+                    {r.status !== 'completed' && <StatusBadge status={r.status} />}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {approvals.length > 0 && (
+        <div className="relative mt-6 rounded-2xl border border-crimson-400/25 bg-crimson/[0.08] p-4">
+          <p className="eyebrow !text-[10px] !text-blush">Waiting for you</p>
+          <ul className="mt-2 space-y-1.5">
+            {approvals.slice(0, 3).map((a) => <li key={a.id} className="truncate text-sm text-bone">{a.title}</li>)}
+          </ul>
+          <Link href="/approvals" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blush hover:gap-2.5 [transition:gap_.2s]">
+            Review {approvals.length > 3 ? `all ${approvals.length}` : ''} <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </div>
+      )}
+    </motion.aside>
+  );
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const { stats, error } = useSystem();
   const [recent, setRecent] = useState<Run[]>([]);
-  const [integrations, setIntegrations] = useState<Integrations | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
-    const load = () => Promise.all([systemApi.stats(), runsApi.list({ limit: 6 }), systemApi.integrations()])
-      .then(([s, r, i]) => { setStats(s); setRecent(r.items); setIntegrations(i); setError(null); })
-      .catch((e) => setError(errorMessage(e)));
+    setNow(new Date());
+    const load = () => {
+      runsApi.list({ limit: 6 }).then((r) => setRecent(r.items)).catch(() => {});
+      approvalsApi.list('pending').then(setApprovals).catch(() => {});
+    };
     load();
-    const t = setInterval(load, 15000);
+    const t = setInterval(load, 10000);
     return () => clearInterval(t);
   }, []);
 
-  if (error && !stats) return <div className="space-y-6"><PageHeader title="Dashboard" /><ErrorBanner message={error} /></div>;
-  if (!stats) return <div className="flex justify-center py-24"><Spinner className="h-8 w-8 text-blue-600" /></div>;
+  if (!stats) return error ? <ErrorBanner message={error} /> : <Loading label="Waking up" />;
 
   const t = stats.totals;
-  const days = stats.runs_per_day.map((d) => ({ ...d, label: d.date.slice(5) }));
-  const quals = toRows(stats.leads.by_qualification).filter((r) => r.value > 0);
-  const categories = toRows(stats.emails.by_category);
+  const today = stats.runs_per_day.at(-1);
+  const todayCount = today ? today.lead + today.email + today.document : 0;
+  const hot = stats.leads.by_qualification.High ?? 0;
+  const days = stats.runs_per_day.map((d) => ({
+    ...d, label: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  }));
+  const quality = Object.entries(stats.leads.by_qualification).map(([name, value]) => ({ name, value })).filter((d) => d.value > 0);
+  const categories = Object.entries(stats.emails.by_category).filter(([k]) => k && k !== 'null')
+    .map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+
+  const parts = [
+    t.pending_approvals ? `${t.pending_approvals} approval${t.pending_approvals > 1 ? 's' : ''} waiting` : null,
+    hot ? `${hot} hot lead${hot > 1 ? 's' : ''}` : null,
+    `${todayCount} processed today`,
+  ].filter(Boolean);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Dashboard" subtitle="Live numbers from everything FlowMancer has processed" />
-      <ErrorBanner message={error} />
+    <motion.div variants={stagger(0.07)} initial="hidden" animate="show" className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="min-w-0 space-y-6">
+        <motion.header variants={rise} className="pb-2 pt-4">
+          <p className="eyebrow mb-4">{now ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ' '}</p>
+          <h1 className="font-display text-[52px] leading-[0.98] tracking-tight text-bone sm:text-[68px]">
+            {now ? greeting(now) : 'Hello'}<em className="text-blush">.</em>
+          </h1>
+          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-fog">
+            {t.runs === 0
+              ? 'Nothing processed yet. Drop in a lead, an email or an invoice and watch the agents work.'
+              : <>{parts.join(' · ')}.</>}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link href="/studio" className="btn-primary !px-5 !py-2.5">Open Studio <ArrowRight className="h-4 w-4" aria-hidden /></Link>
+            {t.pending_approvals > 0 && <Link href="/approvals" className="btn-ghost !px-5 !py-2.5">Review approvals</Link>}
+          </div>
+        </motion.header>
 
-      {integrations && integrations.ai.reachable === false && (
-        <ErrorBanner message={`AI model unavailable: ${integrations.ai.detail}. Start the Ollama app and try again.`} />
-      )}
+        <motion.div variants={stagger(0.08)} className="grid gap-4 md:h-[400px] md:grid-cols-5 md:grid-rows-2">
+          <ArtTile variant="lead" href="/studio?kind=lead" title="Leads" size="lg" value={stats.leads.count}
+            detail={stats.leads.count ? `Average score ${stats.leads.avg_score} · ${hot} hot` : 'Score your first lead'}
+            className="md:col-span-3 md:row-span-2" />
+          <ArtTile variant="email" href="/studio?kind=email" title="Emails" value={stats.emails.count}
+            detail={stats.emails.count ? `${stats.emails.by_priority.urgent ?? 0} urgent · ${stats.emails.by_category.spam ?? 0} spam filtered` : 'Triage an email'}
+            className="md:col-span-2" />
+          <ArtTile variant="document" href="/studio?kind=document" title="Documents" value={stats.documents.count}
+            detail={stats.documents.count ? `${stats.documents.approval_required} needed approval` : 'Check an invoice'}
+            className="md:col-span-2" />
+        </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Items processed" value={t.runs} icon={Activity}
-          hint={t.in_progress ? `${t.in_progress} in progress` : `${t.failed} failed`} />
-        <StatCard label="Success rate" value={t.success_rate === null ? '-' : `${t.success_rate}%`} icon={Gauge} />
-        <StatCard label="Avg processing time" value={formatDuration(t.avg_duration_seconds)} icon={Clock} />
-        <Link href="/approvals" className="rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-          <StatCard label="Waiting for approval" value={t.pending_approvals} icon={CheckSquare} hint="Click to review" />
-        </Link>
-      </div>
+        <motion.div variants={stagger(0.05)} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Stat label="Success rate" value={t.success_rate} decimals={t.success_rate !== null && t.success_rate % 1 ? 1 : 0} suffix="%" />
+          <Stat label="Avg time" value={t.avg_duration_seconds} decimals={1} suffix="s" hint="per item, start to verdict" />
+          <Stat label="Processed" value={t.runs} hint={t.in_progress ? `${t.in_progress} in progress` : `${t.failed} failed`} />
+          <Stat label="Live workflows" value={t.active_workflows} hint={`${t.workflow_executions} run${t.workflow_executions === 1 ? '' : 's'}`} />
+        </motion.div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card title="Processed per day (last 14 days)" className="xl:col-span-2">
-          {t.runs === 0 ? <Empty>Nothing processed yet. <Link className="text-blue-700 underline" href="/use-cases">Try it</Link></Empty> : (
-            <div className="h-64" role="img" aria-label="Bar chart of items processed per day by type">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={days}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="label" fontSize={12} />
-                  <YAxis allowDecimals={false} fontSize={12} />
-                  <Tooltip />
-                  <Legend />
-                  {(['lead', 'email', 'document'] as const).map((k) => (
-                    <Bar key={k} dataKey={k} name={KIND_LABELS[k]} stackId="a" fill={KIND_COLORS[k]} />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Panel eyebrow="Last 14 days" title="Activity" className="lg:col-span-2">
+            {t.runs === 0 ? <Empty title="A quiet two weeks">Processed items will show up here.</Empty> : (
+              <div className="h-60" role="img" aria-label="Items processed per day, by type"><ActivityChart data={days} /></div>
+            )}
+          </Panel>
+          <Panel eyebrow="Leads" title="Quality mix">
+            {quality.length === 0 ? <Empty title="No leads yet" /> : (
+              <>
+                <div className="relative h-44" role="img" aria-label={quality.map((q) => `${q.name} ${q.value}`).join(', ')}>
+                  <QualityDonut data={quality} />
+                  <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+                    <div>
+                      <p className="font-display text-4xl leading-none"><CountUp value={stats.leads.avg_score} decimals={0} /></p>
+                      <p className="eyebrow mt-1 !text-[9px]">avg score</p>
+                    </div>
+                  </div>
+                </div>
+                <ul className="mt-4 flex justify-center gap-4 text-xs text-fog">
+                  {quality.map((q) => (
+                    <li key={q.name} className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full" style={{ background: QUALITY_COLORS[q.name] }} />{q.name} {q.value}
+                    </li>
                   ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </Card>
+                </ul>
+              </>
+            )}
+          </Panel>
+        </div>
 
-        <Card title="Lead quality">
-          {quals.length === 0 ? <Empty>No leads yet</Empty> : (
-            <>
-              <p className="text-sm text-gray-600">Average score <span className="font-bold text-gray-900">{stats.leads.avg_score}</span></p>
-              <div className="h-52" role="img" aria-label={`Lead quality: ${quals.map((q) => `${q.name} ${q.value}`).join(', ')}`}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={quals} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} label>
-                      {quals.map((q) => <Cell key={q.name} fill={LEVEL_COLORS[q.name]} />)}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </>
-          )}
-        </Card>
+        {categories.length > 0 && (
+          <Panel eyebrow="Emails" title="What people write about">
+            <div className="h-44" role="img" aria-label={categories.map((c) => `${c.name} ${c.value}`).join(', ')}>
+              <CategoryBars data={categories} />
+            </div>
+          </Panel>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card title="Email categories">
-          {categories.length === 0 ? <Empty>No emails yet</Empty> : (
-            <div className="h-52" role="img" aria-label={`Email categories: ${categories.map((c) => `${c.name} ${c.value}`).join(', ')}`}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categories} layout="vertical">
-                  <XAxis type="number" allowDecimals={false} fontSize={12} />
-                  <YAxis type="category" dataKey="name" width={80} fontSize={12} />
-                  <Tooltip />
-                  <Bar dataKey="value" name="Emails" fill={KIND_COLORS.email} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </Card>
-
-        <Card title="Recent activity" className="xl:col-span-2" actions={<Link href="/history" className="text-sm font-semibold text-blue-700 hover:underline">View all</Link>}>
-          {recent.length === 0 ? <Empty>No activity yet</Empty> : (
-            <ul className="divide-y divide-gray-100">
-              {recent.map((r) => (
-                <li key={r.id}>
-                  <Link href={`/history/${r.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:bg-gray-50">
-                    <span className="w-20 font-medium">{KIND_LABELS[r.kind]}</span>
-                    <span className="flex-1 truncate text-gray-700">{summary(r)}</span>
-                    <span className="text-xs text-gray-500">{formatDate(r.created_at)}</span>
-                    <StatusBadge status={r.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
-
-      <p className="text-xs text-gray-500">
-        {t.workflows} workflows ({t.active_workflows} active), {t.workflow_executions} workflow runs, {t.knowledge_documents} knowledge documents.
-      </p>
-    </div>
+      <AICore recent={recent} approvals={approvals} />
+    </motion.div>
   );
 }
-

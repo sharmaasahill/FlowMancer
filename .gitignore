@@ -39,9 +39,6 @@ Thumbs.db
 *.sqlite3
 postgres_data/
 
-# Docker
-.dockerignore
-
 # Logs
 logs/
 *.log

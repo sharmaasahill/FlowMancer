@@ -31,7 +31,7 @@ def hot_lead_graph(trigger="manual"):
 
 
 def create(client, graph, **extra):
-    r = client.post("/api/workflows/", json={"name": "Hot leads", "workflow_type": "custom", "config": graph, **extra})
+    r = client.post("/api/workflows/", json={"name": "Hot leads", "config": graph, **extra})
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -98,19 +98,9 @@ def test_bad_input_fails_with_clear_error(client):
 def test_inactive_and_empty_workflows_cannot_run(client):
     wf = create(client, hot_lead_graph(), is_active=False)
     assert client.post(f"/api/workflows/{wf['id']}/run", json={"input_data": LEAD}).status_code == 422
-    empty = client.post("/api/workflows/", json={"name": "empty", "workflow_type": "custom"}).json()
+    empty = client.post("/api/workflows/", json={"name": "empty"}).json()
     r = client.post(f"/api/workflows/{empty['id']}/run", json={"input_data": LEAD})
     assert r.status_code == 422 and "no steps" in r.json()["detail"]
-
-
-def test_legacy_workflow_still_works(client):
-    wf = client.post("/api/workflows/", json={"name": "Old", "workflow_type": "lead_qualification"}).json()
-    ex = client.post("/api/executions/", json={"workflow_id": wf["id"], "input_data": LEAD})
-    assert ex.status_code == 202
-    ex = finished(client, ex.json()["id"])
-    assert ex["status"] == "completed"
-    assert ex["output_data"]["kind"] == "lead"
-    assert len(client.get("/api/approvals/?status=pending").json()) == 1
 
 
 def test_form_trigger_routes_to_form_workflow(client):

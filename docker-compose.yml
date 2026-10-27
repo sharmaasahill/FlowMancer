@@ -1,14 +1,12 @@
+# Local stack: PostgreSQL + backend + frontend.
+# The AI runs on Gemini (key in backend/.env). Ollama, if used, stays on your machine.
 services:
-  # PostgreSQL database (local dev outside Docker uses SQLite instead)
   postgres:
     image: postgres:15-alpine
-    container_name: flowmancer-db
     environment:
       POSTGRES_USER: flowmancer
-      POSTGRES_PASSWORD: flowmancer123
-      POSTGRES_DB: flowmancer_db
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: flowmancer   # local development only
+      POSTGRES_DB: flowmancer
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -17,19 +15,11 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: flowmancer-backend
-    # Secrets, AI provider, model, etc. come from backend/.env
-    env_file:
-      - ./backend/.env
-    # These override .env so the container talks to the right services
+    build: ./backend
+    env_file: ./backend/.env
     environment:
-      - DATABASE_URL=postgresql://flowmancer:flowmancer123@postgres:5432/flowmancer_db
-      # Ollama runs on your machine, not in Docker
+      - DATABASE_URL=postgresql://flowmancer:flowmancer@postgres:5432/flowmancer
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -39,31 +29,18 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./backend/app:/app/app
       - knowledge_data:/app/knowledge_data
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Frontend
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: flowmancer-frontend
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
       - "3000:3000"
     depends_on:
       - backend
-    volumes:
-      - ./frontend/src:/app/src
-      - /app/node_modules
-      - /app/.next
 
 volumes:
   postgres_data:
   knowledge_data:
-
-networks:
-  default:
-    name: flowmancer-network

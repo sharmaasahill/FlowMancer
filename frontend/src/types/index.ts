@@ -161,11 +161,8 @@ export interface Workflow {
   id: number;
   name: string;
   description?: string | null;
-  workflow_type: 'lead_qualification' | 'email_processing' | 'document_automation' | 'custom';
   config?: WorkflowGraph | null;
   is_active: boolean;
-  n8n_workflow_id?: string | null;
-  zapier_webhook_url?: string | null;
   created_at: string;
   updated_at?: string | null;
 }
@@ -216,7 +213,7 @@ export interface Stats {
 }
 
 export interface Integrations {
-  ai: { provider: string; model: string; reachable: boolean | null; detail: string };
+  ai: { provider: string; model: string; fallbacks: string[]; reachable: boolean | null; detail: string };
   research: { enabled: boolean; engine: string };
   slack: { configured: boolean };
   hubspot: { configured: boolean };
