@@ -177,7 +177,7 @@ This starts PostgreSQL, the backend on port 8000 and the frontend on port 3000.
 - **Scanned PDFs** (images) need OCR, which isn't included.
 - **The inbox uses IMAP app passwords,** not OAuth. Fetched emails are marked as read.
 - **Run one backend process.** The knowledge store is a local folder.
-- **The Docker setup and the Slack/HubSpot/IMAP integrations** are tested with fakes in the test suite, not against live accounts.
+- **Slack** has been tested against a live workspace. **The Docker setup and the HubSpot/IMAP integrations** are tested with fakes in the test suite, not against live accounts.
 
 ## Author
 
