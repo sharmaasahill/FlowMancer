@@ -4,6 +4,8 @@
 
 FlowMancer researches a sales lead on the web, triages an email against your own policies, or checks an invoice. It returns a structured verdict (scores, categories, totals) and proposes an action: a CRM contact, a reply draft, a Finance sign-off. Nothing is sent until someone approves it.
 
+**Live demo: [flowmancer.vercel.app](https://flowmancer.vercel.app)** (frontend on Vercel, API on Render's free plan, so the first visit after a quiet spell can take up to a minute while the server wakes up).
+
 ![CI](https://github.com/sharmaasahill/FlowMancer/actions/workflows/ci.yml/badge.svg)
 ![Accuracy](https://github.com/sharmaasahill/FlowMancer/actions/workflows/accuracy.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
@@ -121,6 +123,7 @@ It uses a temporary database and knowledge store, so your own data is not touche
 | Model | Leads | Emails | Documents | Total | Avg time |
 |-------|-------|--------|-----------|-------|----------|
 | `gemini-3.5-flash-lite` | 12/12 | 10/10 | 8/8 | **30/30 (100%)** | 8.2 s |
+| `gemini-3.5-flash-lite`, GitHub Actions run, 28 Oct 2026 | 12/12 | 10/10 | 8/8 | **30/30 (100%)** | 1.5 s |
 
 **In CI:** [`.github/workflows/accuracy.yml`](.github/workflows/accuracy.yml) runs the same test every Monday, from the **Run workflow** button on the Actions tab, and on pull requests that touch prompts, the AI layer or the test cases. It fails below 90% and attaches the report. It needs a repository secret named `GEMINI_API_KEY` (Settings → Secrets and variables → Actions); without one the job is skipped, not failed.
 
@@ -201,7 +204,7 @@ backend/tests/   pytest suite (fake model, fake embeddings)
 docs/            README screenshots
 frontend/src/
   app/           pages: login, overview, studio, history, workflows (+ builder), approvals, knowledge, usage,
-                 integrations
+                 integrations, and the public about / privacy / terms pages
   components/    shell (sidebar, command palette), assistant drawer, Studio, run timeline/result, workflow builder, charts
   lib/           API client, auth, live-run hook, examples, workflow templates
 ```

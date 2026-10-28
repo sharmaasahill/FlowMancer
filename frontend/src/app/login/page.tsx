@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -133,6 +134,11 @@ function LoginForm() {
           {!signupsOpen && <p className="mt-5 text-center text-xs text-fog">New accounts are turned off on this server.</p>}
         </div>
         {!configLoaded && <div className="mt-5 text-center"><WakingHint /></div>}
+        <nav className="mt-6 flex justify-center gap-5 text-xs text-fog" aria-label="About FlowMancer">
+          <Link href="/about" className="hover:text-bone">About</Link>
+          <Link href="/privacy" className="hover:text-bone">Privacy policy</Link>
+          <Link href="/terms" className="hover:text-bone">Terms of service</Link>
+        </nav>
       </motion.div>
     </div>
   );

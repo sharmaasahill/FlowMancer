@@ -18,7 +18,8 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { SystemProvider, useSystem } from '@/lib/system';
 import { cn } from '@/lib/utils';
 
-const PUBLIC_PATHS = ['/login'];
+// Pages anyone can open without signing in
+const PUBLIC_PATHS = ['/login', '/about', '/privacy', '/terms'];
 
 function TopBar({ onSearch, onMenu }: { onSearch: () => void; onMenu: () => void }) {
   const { stats } = useSystem();

@@ -10,6 +10,8 @@ const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 export const metadata: Metadata = {
   title: { default: 'FlowMancer', template: '%s · FlowMancer' },
   description: 'AI that reads your leads, emails and documents, and proposes what to do next.',
+  // Google Search Console "HTML tag" verification code (set on Vercel; empty = no tag)
+  verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
 export const viewport: Viewport = { themeColor: '#0E0A0B' };

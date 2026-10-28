@@ -43,9 +43,9 @@ jobs:
             echo "::notice::GEMINI_API_KEY secret is not set, so the accuracy test was skipped."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.key.outputs.skip != 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.key.outputs.skip != 'true'
         with:
           python-version: "3.11"
@@ -53,7 +53,7 @@ jobs:
           cache-dependency-path: backend/requirements*.txt
       - name: Cache the embedding model
         if: steps.key.outputs.skip != 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/chroma
           key: chroma-onnx-minilm-v1
@@ -65,7 +65,7 @@ jobs:
         run: python -m eval.run_eval --min-accuracy 90 --summary "$GITHUB_STEP_SUMMARY"
       - name: Save the report
         if: always() && steps.key.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: accuracy-report
           path: backend/eval/results/
