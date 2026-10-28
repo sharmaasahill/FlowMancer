@@ -1,6 +1,7 @@
 """
 HubSpot CRM: create or update a contact by email.
-Needs a Private App access token with the crm.objects.contacts.write scope.
+Needs a HubSpot Service Key (or a legacy private app token) with the
+crm.objects.contacts.read and crm.objects.contacts.write scopes. It is sent as a Bearer token.
 """
 import httpx
 from app.core.config import settings

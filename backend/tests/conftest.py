@@ -19,6 +19,7 @@ os.environ.update({
     "SLACK_WEBHOOK_URL": "", "HUBSPOT_ACCESS_TOKEN": "", "WEBHOOK_URL": "",
     "IMAP_HOST": "", "IMAP_USER": "", "IMAP_PASSWORD": "", "INBOX_POLL_SECONDS": "0",
     "JWT_SECRET": "test-secret-0123456789-abcdefghijklmnop", "ALLOW_SIGNUPS": "true", "INBOX_OWNER_EMAIL": "",
+    "GOOGLE_CLIENT_ID": "", "CORS_ORIGINS": '["http://localhost:3000"]', "DEBUG": "false",
     "AI_PROVIDER": "gemini", "GEMINI_API_KEY": "", "OLLAMA_FALLBACK": "false",
     "CREWAI_DISABLE_TELEMETRY": "true", "OTEL_SDK_DISABLED": "true",
 })
