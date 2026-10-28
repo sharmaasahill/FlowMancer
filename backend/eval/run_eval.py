@@ -9,6 +9,7 @@ repeatable.
     venv/Scripts/python.exe -m eval.run_eval                     # the model in .env (Gemini)
     venv/Scripts/python.exe -m eval.run_eval --provider ollama   # compare with the local model
     venv/Scripts/python.exe -m eval.run_eval --only email --delay 6
+    python -m eval.run_eval --min-accuracy 90 --summary "$GITHUB_STEP_SUMMARY"   # CI
 
 Each case passes only if every expected field is right. A report is written to
 eval/results/<model>-<date>.md (and .json).
@@ -34,6 +35,10 @@ def parse_args():
     p.add_argument("--delay", type=float, default=4.5,
                    help="Seconds between cases, to stay under free-tier rate limits (default 4.5)")
     p.add_argument("--cases", type=Path, default=HERE / "cases.json")
+    p.add_argument("--min-accuracy", type=float, default=None,
+                   help="Exit with an error if accuracy (%% of cases passed) is below this, e.g. 90 (used by CI)")
+    p.add_argument("--summary", type=Path, default=None,
+                   help="Also append the Markdown report to this file (CI passes $GITHUB_STEP_SUMMARY)")
     return p.parse_args()
 
 
@@ -143,6 +148,17 @@ def main():
            for r in fails] or ["None."]
     (out_dir / f"{stem}.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print(f"\nReport: eval/results/{stem}.md")
+
+    passed_gate = ARGS.min_accuracy is None or total["accuracy"] >= ARGS.min_accuracy
+    if ARGS.summary:
+        gate = "" if ARGS.min_accuracy is None else (
+            f"\n**{'Passed' if passed_gate else 'Failed'}:** needs at least {ARGS.min_accuracy:g}% "
+            f"(got {total['accuracy']}%).\n")
+        with ARGS.summary.open("a", encoding="utf-8") as f:
+            f.write("\n".join(md) + "\n" + gate)
+    if not passed_gate:
+        print(f"FAILED: accuracy {total['accuracy']}% is below the required {ARGS.min_accuracy:g}%")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

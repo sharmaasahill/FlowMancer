@@ -4,8 +4,8 @@
  */
 import axios, { AxiosError } from 'axios';
 import type {
-  Approval, AuthSession, ChatReply, ChatTurn, Integrations, Kind, KnowledgeDocument, Mode, Run, RunList, Stats, User,
-  Workflow, WorkflowExecution, WorkflowGraph,
+  Approval, AuthConfig, AuthSession, ChatReply, ChatTurn, Integrations, Kind, KnowledgeDocument, Mode, Run, RunList,
+  Stats, UsageReport, User, Workflow, WorkflowExecution, WorkflowGraph,
 } from '@/types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -38,7 +38,8 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(undefined, (error) => {
   const url: string = error?.config?.url || '';
-  if (error instanceof AxiosError && error.response?.status === 401 && !url.startsWith('/api/auth/login')) {
+  const signingIn = url.startsWith('/api/auth/login') || url.startsWith('/api/auth/google');
+  if (error instanceof AxiosError && error.response?.status === 401 && !signingIn) {
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   }
   return Promise.reject(error);
@@ -64,9 +65,10 @@ export function errorMessage(err: unknown): string {
 }
 
 export const authApi = {
-  config: () => api.get<{ signups_open: boolean; has_users: boolean }>('/api/auth/config').then((r) => r.data),
+  config: () => api.get<AuthConfig>('/api/auth/config').then((r) => r.data),
   login: (email: string, password: string) =>
     api.post<AuthSession>('/api/auth/login', { email, password }).then((r) => r.data),
+  google: (credential: string) => api.post<AuthSession>('/api/auth/google', { credential }).then((r) => r.data),
   register: (name: string, email: string, password: string) =>
     api.post<AuthSession>('/api/auth/register', { name, email, password }).then((r) => r.data),
   me: () => api.get<User>('/api/auth/me').then((r) => r.data),
@@ -134,6 +136,7 @@ export const systemApi = {
   stats: () => api.get<Stats>('/api/stats').then((r) => r.data),
   integrations: () => api.get<Integrations>('/api/integrations').then((r) => r.data),
   pollInbox: () => api.post<{ fetched: number; dispatched: any[] }>('/api/triggers/inbox/poll').then((r) => r.data),
+  usage: (days: number) => api.get<UsageReport>('/api/usage', { params: { days } }).then((r) => r.data),
 };
 
 export default api;

@@ -3,7 +3,7 @@ Application settings, loaded from environment variables / backend/.env.
 Only GEMINI_API_KEY is required; everything else has a working default.
 """
 import json
-from typing import List
+from typing import Dict, List
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_DAYS: int = 7
     # Set to false after creating your account(s) to stop new sign-ups
     ALLOW_SIGNUPS: bool = True
+    # "Sign in with Google": OAuth client ID from Google Cloud Console (empty = button hidden)
+    GOOGLE_CLIENT_ID: str = ""
 
     # ---------- AI ----------
     # "gemini" (Google, free tier) or "ollama" (local, offline)
@@ -41,6 +43,13 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "llama3.2"
     OLLAMA_NUM_CTX: int = 8192
     AI_TIMEOUT_SECONDS: int = 90
+    # Paid-tier prices in USD per 1M tokens [input, output], for the cost estimate on the Usage page.
+    # Source: ai.google.dev/gemini-api/docs/pricing (standard tier, checked October 2026).
+    # Models not listed show tokens but no cost. Local Ollama models cost nothing.
+    AI_PRICES: Dict[str, List[float]] = {
+        "gemini-3.5-flash-lite": [0.30, 2.50],
+        "gemini-3.1-flash-lite": [0.25, 1.50],
+    }
 
     # ---------- Lead research ----------
     # Sends the company name and email domain to DuckDuckGo and fetches the company website
@@ -77,6 +86,16 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors(cls, v):
         return json.loads(v) if isinstance(v, str) else v
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def sqlalchemy_url(cls, v):
+        # Hosts hand out postgres:// or postgresql:// URLs. SQLAlchemy rejects the first and maps the
+        # second to the psycopg 3 driver; this project installs psycopg2, so name it explicitly.
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg2://" + v[len(prefix):]
+        return v
 
     @field_validator("JWT_SECRET")
     @classmethod

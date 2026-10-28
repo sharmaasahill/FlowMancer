@@ -86,3 +86,26 @@ export function CategoryBars({ data }: { data: { name: string; value: number }[]
     </ResponsiveContainer>
   );
 }
+
+const TOKEN_SERIES = [
+  { key: 'input_tokens', name: 'Input tokens', color: '#7A0E0E' },
+  { key: 'output_tokens', name: 'Output tokens', color: '#F2B8B5' },
+];
+
+export function TokenChart({ data }: { data: { label: string; input_tokens: number; output_tokens: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+        <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+        <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+        <YAxis allowDecimals={false} tick={AXIS} axisLine={false} tickLine={false}
+          tickFormatter={(v: number) => new Intl.NumberFormat('en', { notation: 'compact' }).format(v)} />
+        <Tooltip content={<GlassTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+        {TOKEN_SERIES.map((s, i) => (
+          <Bar key={s.key} dataKey={s.key} name={s.name} stackId="t" fill={s.color} maxBarSize={28}
+            radius={i === TOKEN_SERIES.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} animationDuration={1000} />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}

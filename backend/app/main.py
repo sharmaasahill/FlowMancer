@@ -3,23 +3,37 @@ FlowMancer - Main FastAPI Application
 AI-Powered Multi-Agent Workflow Orchestrator
 """
 import logging
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import approvals, assistant, auth, executions, knowledge, runs, system, triggers, use_cases, workflows
+from app.api import (approvals, assistant, auth, executions, knowledge, runs, system, triggers, usage, use_cases,
+                     workflows)
 from app.core.config import settings
 from app.core.database import init_db
 from app.services import inbox
+from app.services import knowledge as knowledge_store
 
 log = logging.getLogger("flowmancer")
+
+
+def _rebuild_knowledge():
+    try:
+        rebuilt = knowledge_store.rebuild_missing()
+        if rebuilt:
+            log.info("Re-indexed %d knowledge document(s) from the database", rebuilt)
+    except Exception:
+        log.warning("Could not rebuild the knowledge index", exc_info=True)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    # In the background: the embedding model may need to load, and the server should answer meanwhile
+    threading.Thread(target=_rebuild_knowledge, name="knowledge-rebuild", daemon=True).start()
     inbox.start_background_polling()
     log.info("%s v%s started. Docs: /api/docs", settings.APP_NAME, settings.APP_VERSION)
     yield
@@ -60,7 +74,7 @@ def health_check():
     return {"status": "healthy", "app": settings.APP_NAME, "version": settings.APP_VERSION}
 
 
-for module in (auth, assistant, use_cases, runs, approvals, knowledge, triggers, workflows, executions, system):
+for module in (auth, assistant, use_cases, runs, approvals, knowledge, triggers, workflows, executions, system, usage):
     app.include_router(module.router, prefix="/api")
 
 

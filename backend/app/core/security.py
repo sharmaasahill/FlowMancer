@@ -82,3 +82,28 @@ def decode_token(token: str) -> Optional[int]:
 
 def new_trigger_key() -> str:
     return "fmk_" + secrets.token_urlsafe(24)
+
+
+class GoogleTokenError(ValueError):
+    """The Google ID token is invalid, expired, or for another app."""
+
+
+def verify_google_token(credential: str) -> dict:
+    """
+    Check a "Sign in with Google" ID token: Google's signature, expiry, issuer, and that it
+    was issued for our client ID. Returns the token's claims (sub, email, email_verified, name).
+    Google's public keys are fetched over HTTPS by google-auth.
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        raise GoogleTokenError("Google sign-in is not set up on this server.")
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token
+
+    try:
+        claims = id_token.verify_oauth2_token(credential, google_requests.Request(), settings.GOOGLE_CLIENT_ID,
+                                              clock_skew_in_seconds=10)
+    except ValueError as e:  # bad signature, wrong audience, expired, malformed
+        raise GoogleTokenError(f"Google sign-in failed: {e}") from e
+    if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        raise GoogleTokenError("Google sign-in failed: unexpected issuer.")
+    return claims

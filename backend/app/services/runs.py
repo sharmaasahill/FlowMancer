@@ -17,6 +17,7 @@ from app.integrations import post_slack
 from app.models import KnowledgeDocument, Run
 from app.services import approvals
 from app.services import processing
+from app.services import usage
 from app.services.progress import StepTracker
 
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="flowmancer-run")
@@ -71,7 +72,8 @@ def execute_run(run_id: int, followups: bool = True) -> Run:
     tracker = StepTracker(processing.step_names(kind, mode), on_change=lambda s: _save_steps(run_id, s))
     started = time.monotonic()
     try:
-        outcome = processing.process(kind, data, mode, tracker, doc_ids=doc_ids)
+        with usage.scope(user_id, kind, mode=mode, run_id=run_id):
+            outcome = processing.process(kind, data, mode, tracker, doc_ids=doc_ids)
         error = None
     except Exception as e:
         tracker.fail_running(str(e))

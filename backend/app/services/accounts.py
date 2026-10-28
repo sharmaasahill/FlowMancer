@@ -72,9 +72,49 @@ def authenticate(db: Session, email: str, password: str) -> User:
     email = normalize_email(email)
     _check_throttle(email)
     user = db.query(User).filter(User.email == email).first()
+    if user and not user.password_hash and user.google_sub:
+        _record_failure(email)
+        raise AccountError("This account signs in with Google. Use the Google button.", 401)
     if not user or not security.verify_password(password, user.password_hash):
         _record_failure(email)
         raise AccountError("Wrong email or password.", 401)
+    return user
+
+
+def google_sign_in(db: Session, claims: dict) -> User:
+    """
+    Sign in (or sign up) from verified Google ID-token claims.
+    Match on Google's account id first; an existing account with the same verified email is linked.
+    """
+    sub = str(claims.get("sub") or "")
+    email = normalize_email(claims.get("email") or "")
+    if not sub or not email:
+        raise AccountError("Google didn't share an email address for this account.", 400)
+    if not claims.get("email_verified"):
+        raise AccountError("This Google account's email address isn't verified.", 403)
+
+    user = db.query(User).filter(User.google_sub == sub).first()
+    if user:
+        return user
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        if user.google_sub:  # the email belongs to a different Google account
+            raise AccountError("This email is linked to a different Google account.", 409)
+        user.google_sub = sub
+        db.commit()
+        db.refresh(user)
+        return user
+
+    first = db.query(User).count() == 0
+    if not first and not settings.ALLOW_SIGNUPS:
+        raise AccountError("Sign-ups are closed on this server.", 403)
+    name = (claims.get("name") or email.split("@")[0]).strip()[:120]
+    user = User(email=email, name=name, password_hash="", google_sub=sub, trigger_key=security.new_trigger_key())
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    if first:
+        claim_unowned(db, user.id)
     return user
 
 

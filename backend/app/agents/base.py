@@ -50,6 +50,13 @@ def _kickoff(steps: List[CrewStep], tracker: StepTracker, llm) -> List[str]:
     crew = Crew(agents=agents, tasks=tasks, process=Process.sequential, verbose=False, task_callback=on_task_done)
     result = crew.kickoff()
 
+    # Token counts for the Usage page (CrewAI adds up all of its model requests)
+    from app.core import llm as llm_mod
+    used = getattr(result, "token_usage", None)
+    if used is not None:
+        llm_mod.note_tokens(getattr(used, "prompt_tokens", 0), getattr(used, "completion_tokens", 0),
+                            requests=getattr(used, "successful_requests", 0) or 1)
+
     # In case the callback didn't fire for some task
     if len(outputs) < len(steps):
         for task in tasks[len(outputs):]:

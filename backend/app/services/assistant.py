@@ -22,6 +22,7 @@ from app.models import Approval, KnowledgeDocument, Run, User
 from app.services import approvals as approvals_service
 from app.services import knowledge as kb
 from app.services import stats as stats_service
+from app.services import usage
 
 MAX_ROUNDS = 6           # model <-> tools round trips per question
 MAX_TOOL_CHARS = 6000    # tool output sent back to the model
@@ -253,7 +254,8 @@ class Reply:
 
 def _invoke(messages: List[BaseMessage], tools: List[StructuredTool]) -> AIMessage:
     """One model call with tools bound (tests replace this)."""
-    return llm_mod.with_fallback(lambda target: llm_mod.chat_model(target).bind_tools(tools).invoke(messages))
+    return llm_mod.with_fallback(
+        lambda target: llm_mod.counted(llm_mod.chat_model(target).bind_tools(tools).invoke(messages)))
 
 
 def chat(db: Session, user: User, history: List[Dict[str, str]]) -> Reply:
@@ -269,7 +271,8 @@ def chat(db: Session, user: User, history: List[Dict[str, str]]) -> Reply:
     llm_mod.reset_used()
     text = ""
     for _ in range(MAX_ROUNDS):
-        ai = _invoke(messages, tools)
+        with usage.scope(user.id, "assistant"):
+            ai = _invoke(messages, tools)
         messages.append(ai)
         if not ai.tool_calls:
             text = llm_mod.text_of(ai.content).strip()

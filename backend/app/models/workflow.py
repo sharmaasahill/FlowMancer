@@ -13,10 +13,20 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(320), nullable=False, unique=True, index=True)
     name = Column(String(120), nullable=False)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=False)  # "" for accounts that only use Google sign-in
     # Identifies the account on public triggers (website form, workflow webhooks)
     trigger_key = Column(String(64), nullable=False, unique=True, index=True)
+    # Google's stable account id ("sub" in the ID token), set after the first Google sign-in
+    google_sub = Column(String(255), nullable=True, unique=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    @property
+    def google_linked(self) -> bool:
+        return bool(self.google_sub)
+
+    @property
+    def has_password(self) -> bool:
+        return bool(self.password_hash)
 
 
 class Workflow(Base):
@@ -109,4 +119,27 @@ class KnowledgeDocument(Base):
     name = Column(String(255), nullable=False)
     characters = Column(Integer, nullable=False, default=0)
     chunks = Column(Integer, nullable=False, default=0)
+    # Original text, so the vector store can be rebuilt on hosts whose disk is wiped on restart
+    text = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AICall(Base):
+    """One attempt to call an AI model (a fallback after a busy model is a second row)."""
+    __tablename__ = "ai_calls"
+    user_id = Column(Integer, nullable=True, index=True)
+
+    id = Column(Integer, primary_key=True, index=True)
+    feature = Column(String(20), nullable=False, index=True)   # lead | email | document | assistant
+    mode = Column(String(10), nullable=True)                    # quick | crew (for runs)
+    run_id = Column(Integer, nullable=True, index=True)
+    provider = Column(String(20), nullable=False)               # gemini | ollama
+    model = Column(String(100), nullable=False)
+    status = Column(String(20), nullable=False)                 # ok | rate_limited | busy | timeout | error
+    fallback = Column(Boolean, nullable=False, default=False)   # not the main model
+    requests = Column(Integer, nullable=False, default=1)       # API requests in this attempt (a crew makes several)
+    input_tokens = Column(Integer, nullable=False, default=0)
+    output_tokens = Column(Integer, nullable=False, default=0)
+    seconds = Column(Float, nullable=True)
+    error = Column(String(300), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)

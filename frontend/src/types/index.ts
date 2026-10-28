@@ -240,7 +240,15 @@ export interface User {
   email: string;
   name: string;
   trigger_key: string;
+  google_linked: boolean;
+  has_password: boolean;
   created_at: string | null;
+}
+
+export interface AuthConfig {
+  signups_open: boolean;
+  has_users: boolean;
+  google_client_id: string | null;
 }
 
 export interface AuthSession {
@@ -267,4 +275,50 @@ export interface ChatReply {
   tools: ToolUse[];
   approvals: Approval[];
   model: string;
+}
+
+/* ---------- AI usage ---------- */
+export type UsageFeature = 'lead' | 'email' | 'document' | 'assistant';
+export type CallStatus = 'ok' | 'rate_limited' | 'busy' | 'timeout' | 'error';
+
+export interface UsageBucket {
+  calls: number;
+  requests: number;
+  failed: number;
+  fallbacks: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  unpriced_calls: number;
+  avg_seconds: number | null;
+  items: number;
+}
+
+export interface UsageReport {
+  days: number;
+  since: string;
+  provider: string;
+  totals: UsageBucket;
+  today: UsageBucket;
+  by_model: (UsageBucket & { provider: string; model: string; price_per_million: [number, number] | null })[];
+  by_feature: (UsageBucket & { feature: UsageFeature; tokens_per_item: number | null; cost_per_item_usd: number | null })[];
+  daily: { date: string; requests: number; failed: number; input_tokens: number; output_tokens: number; cost_usd: number }[];
+  recent: {
+    id: number;
+    created_at: string;
+    feature: UsageFeature;
+    mode: string | null;
+    run_id: number | null;
+    provider: string;
+    model: string;
+    status: CallStatus;
+    fallback: boolean;
+    requests: number;
+    input_tokens: number;
+    output_tokens: number;
+    seconds: number | null;
+    error: string | null;
+    cost_usd: number | null;
+  }[];
+  prices: Record<string, [number, number] | null>;
 }

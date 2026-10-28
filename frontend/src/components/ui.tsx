@@ -168,10 +168,12 @@ export function Segmented<T extends string>({ options, value, onChange, id, labe
 }
 
 /** Animates between numbers. */
-export function CountUp({ value, decimals = 0, suffix = '' }: { value: number | null | undefined; decimals?: number; suffix?: string }) {
+export function CountUp({ value, decimals = 0, suffix = '', prefix = '' }: {
+  value: number | null | undefined; decimals?: number; suffix?: string; prefix?: string;
+}) {
   const reduce = useReducedMotion();
   const mv = useMotionValue(0);
-  const text = useTransform(mv, (v) => `${v.toFixed(decimals)}${suffix}`);
+  const text = useTransform(mv, (v) => `${prefix}${v.toFixed(decimals)}${suffix}`);
   useEffect(() => {
     if (value === null || value === undefined) return;
     if (reduce) {
@@ -183,6 +185,21 @@ export function CountUp({ value, decimals = 0, suffix = '' }: { value: number | 
   }, [value, reduce, mv]);
   if (value === null || value === undefined) return <span>-</span>;
   return <motion.span className="tabular-nums">{text}</motion.span>;
+}
+
+/** A number tile: label, big animated value, one line of context. */
+export function Stat({ label, value, decimals, suffix, prefix, hint }: {
+  label: string; value: number | null | undefined; decimals?: number; suffix?: string; prefix?: string; hint?: React.ReactNode;
+}) {
+  return (
+    <motion.div variants={rise} className="glass rounded-[22px] px-5 py-4">
+      <p className="eyebrow !text-[10px]">{label}</p>
+      <p className="mt-2 font-display text-[34px] leading-none text-bone">
+        {value === null || value === undefined ? '-' : <CountUp value={value} decimals={decimals} suffix={suffix} prefix={prefix} />}
+      </p>
+      {hint && <p className="mt-1 text-xs text-fog">{hint}</p>}
+    </motion.div>
+  );
 }
 
 /** Circular score meter. */

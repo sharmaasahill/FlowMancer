@@ -5,9 +5,23 @@
 FlowMancer researches a sales lead on the web, triages an email against your own policies, or checks an invoice. It returns a structured verdict (scores, categories, totals) and proposes an action: a CRM contact, a reply draft, a Finance sign-off. Nothing is sent until someone approves it.
 
 ![CI](https://github.com/sharmaasahill/FlowMancer/actions/workflows/ci.yml/badge.svg)
+![Accuracy](https://github.com/sharmaasahill/FlowMancer/actions/workflows/accuracy.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![Next.js](https://img.shields.io/badge/next.js-14-black.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
+
+![A refund email processed live: knowledge lookup, analysis, a reply that quotes the refund policy, and a draft waiting for approval](docs/screenshots/studio-live.gif)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Dashboard with lead, email and document counts, the AI status panel and recent activity"><br><sub><b>Dashboard.</b> Live counts, the model in use, and what's waiting for you.</sub></td>
+    <td width="50%"><img src="docs/screenshots/assistant.png" alt="Ask FlowMancer answering which hot leads came in today, with links to the runs and approvals it used"><br><sub><b>Ask FlowMancer.</b> Answers from your own data, with links to the runs it read.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/workflow-builder.png" alt="Visual workflow builder: website form, qualify lead, a score condition, then Slack and CRM approval or a webhook"><br><sub><b>Workflow builder.</b> Trigger, AI step, condition, actions.</sub></td>
+    <td width="50%"><img src="docs/screenshots/usage.png" alt="Usage page with requests, tokens, estimated cost, tokens per day, cost per feature and recent requests"><br><sub><b>Usage.</b> Tokens, response time and an estimated bill per feature and model.</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -21,7 +35,9 @@ FlowMancer researches a sales lead on the web, triages an email against your own
 
 You can also ask questions in plain English ("which hot leads came in this week?", "draft a reply to run #12"). The **Ask FlowMancer** assistant looks the answer up in your own runs, approvals and knowledge base.
 
-**Measured accuracy:** 30 out of 30 labelled test cases correct (12 leads, 10 emails, 8 documents) with the default Gemini model, 8.2 s per case on average in quick mode. The cases and the scoring script are in [`backend/eval/`](backend/eval), and the full report is in [`backend/eval/results/`](backend/eval/results). See [Accuracy test set](#accuracy-test-set) to run it yourself.
+**Measured accuracy:** 30 out of 30 labelled test cases correct (12 leads, 10 emails, 8 documents) with the default Gemini model, 8.2 s per case on average in quick mode. The cases and the scoring script are in [`backend/eval/`](backend/eval), and the full report is in [`backend/eval/results/`](backend/eval/results). A GitHub Actions job reruns it every week and fails if accuracy drops below 90%. See [Accuracy test set](#accuracy-test-set).
+
+**Measured cost:** in the demo data on the Usage page, a quick-mode email took about 540 tokens, which is about $0.0005 at Google's paid prices. A crew-mode lead made 17 model requests and used about 14,800 tokens (about $0.011). On the free tier both cost nothing.
 
 ## Features
 
@@ -33,19 +49,20 @@ You can also ask questions in plain English ("which hot leads came in this week?
 - **Knowledge base (RAG).** Upload pricing, policies or FAQs. They're chunked, embedded locally with ChromaDB and quoted in replies.
 - **Human approval queue.** Edit a proposed reply or contact, then approve or reject it.
 - **Ask FlowMancer assistant.** A chat drawer (top bar, or `Ctrl+J`) that answers questions using tools: search runs, open one run, list approvals, search the knowledge base, show stats, and draft a reply. A draft only goes into the approval queue. The assistant can't send anything, and it only sees the signed-in account's data.
-- **Accounts.** Email and password sign-in. Each account has its own runs, workflows, approvals and knowledge base. Passwords are hashed with scrypt, sessions use signed tokens (JWT), and repeated failed sign-ins are slowed down.
+- **Accounts.** Email and password, or **Sign in with Google**. Each account has its own runs, workflows, approvals, knowledge base and usage. Passwords are hashed with scrypt, sessions use signed tokens (JWT), and repeated failed sign-ins are blocked for 15 minutes. Google sign-in checks Google's signature on the ID token on the server and links to an existing account with the same verified email.
+- **Usage and cost page.** Every model request is recorded: feature, model, input and output tokens, response time, and whether it was rate-limited or answered by the backup model. The page shows totals, tokens per day, cost per lead/email/document, and an estimate at Google's paid prices.
 - **Triggers:** website form webhook, IMAP inbox polling, per-workflow webhooks, file upload.
 - **Actions:** Slack, HubSpot, mailbox reply drafts, and outbound webhooks for Zapier, n8n and Make.
 - **Visual workflow builder.** Drag-and-drop trigger, AI, condition and action steps, with templates. Graphs are validated on save (one trigger, no loops), and a test run lights up the path it took.
 - **Dashboard.** Live counts, activity charts, an AI status panel and full run history.
-- **Tests.** 85 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
-- **Accuracy test set.** 30 labelled cases scored against the real model, with a Markdown report.
+- **Tests.** 105 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
+- **Accuracy test set in CI.** 30 labelled cases scored against the real model, with a Markdown report. It runs weekly, on demand, and on pull requests that change prompts or the AI code.
 
 ## Tech stack
 
 | Layer | Tools |
 |-------|-------|
-| Backend | FastAPI, SQLAlchemy (SQLite locally, PostgreSQL in Docker), Pydantic |
+| Backend | FastAPI, SQLAlchemy (SQLite locally, PostgreSQL in Docker or hosted), Pydantic, google-auth |
 | AI | Google Gemini via `langchain-google-genai`, CrewAI, optional Ollama |
 | Retrieval | ChromaDB (local embeddings), DuckDuckGo (`ddgs`), pdfplumber |
 | Frontend | Next.js 14, TypeScript, Tailwind CSS, Framer Motion, React Flow, Recharts |
@@ -105,6 +122,8 @@ It uses a temporary database and knowledge store, so your own data is not touche
 |-------|-------|--------|-----------|-------|----------|
 | `gemini-3.5-flash-lite` | 12/12 | 10/10 | 8/8 | **30/30 (100%)** | 8.2 s |
 
+**In CI:** [`.github/workflows/accuracy.yml`](.github/workflows/accuracy.yml) runs the same test every Monday, from the **Run workflow** button on the Actions tab, and on pull requests that touch prompts, the AI layer or the test cases. It fails below 90% and attaches the report. It needs a repository secret named `GEMINI_API_KEY` (Settings → Secrets and variables → Actions); without one the job is skipped, not failed.
+
 ---
 
 ## Configuration
@@ -125,6 +144,10 @@ Everything lives in `backend/.env`. Only `GEMINI_API_KEY` is required. [`backend
 | `JWT_SECRET` | Signs sign-in tokens. Empty = generated and saved in `backend/.flowmancer_secret`. Set 32+ random characters for Docker or a server | generated |
 | `ALLOW_SIGNUPS` | `false` stops new sign-ups (the first account is always allowed) | `true` |
 | `INBOX_OWNER_EMAIL` | Account that receives emails from the IMAP inbox | first account |
+| `GOOGLE_CLIENT_ID` | Shows the "Sign in with Google" button. See [Sign in with Google](#sign-in-with-google) | - |
+| `DATABASE_URL` | Database. Hosted Postgres URLs (`postgres://…` or `postgresql://…`) work as given | local SQLite file |
+| `CORS_ORIGINS` | Frontend addresses allowed to call the API, as a JSON list | `localhost:3000` |
+| `AI_PRICES` | Paid-tier prices per 1M tokens for the Usage page's cost estimate | current Gemini prices |
 
 Integrations you haven't set up are reported as "skipped" and never break a run. The **Integrations** page shows what's connected. Slack, HubSpot and the inbox are set once per server and shared by all accounts.
 
@@ -132,7 +155,17 @@ Integrations you haven't set up are reported as "skipped" and never break a run.
 
 The public triggers (`/api/triggers/form` and `/api/triggers/webhook/{id}`) are called by other websites, so they can't use your sign-in. Instead, each account has a **trigger key**. Copy it from the **Integrations** page and add it to the URL as `?key=...` or send it in the `X-FlowMancer-Key` header. The run is saved to the account that owns the key. If the key leaks, press **Rotate** to replace it; the old key stops working.
 
-**About the Gemini free tier:** it has per-minute and per-day request limits, and Google may use free-tier requests to improve its products. Don't send real customer data through it. Quick mode uses 1 request per item; crew mode uses about 5.
+### Sign in with Google
+
+1. Open [Google Cloud Console → Google Auth Platform → Clients](https://console.cloud.google.com/auth/clients) and create a project if asked.
+2. Fill in **Branding** (app name and support email) when prompted.
+3. **Create client** → Application type **Web application**.
+4. Under **Authorized JavaScript origins**, add `http://localhost` and `http://localhost:3000`, plus your live frontend address later (for example `https://flowmancer.vercel.app`). No redirect URI is needed.
+5. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`) into `GOOGLE_CLIENT_ID` in `backend/.env` and restart the backend.
+
+The client ID is public, so the frontend reads it from the backend. No client secret is used. The backend checks every Google token's signature, expiry and audience before signing anyone in.
+
+**About the Gemini free tier:** it has per-minute and per-day request limits, and Google may use free-tier requests to improve its products. Don't send real customer data through it. Quick mode uses 1 request per item. A crew-mode lead used 17 in testing. The **Usage** page shows your exact numbers.
 
 ---
 
@@ -154,17 +187,21 @@ The public triggers (`/api/triggers/form` and `/api/triggers/webhook/{id}`) are 
 ```
 backend/app/
   agents/        prompts and crew definitions per use case
-  api/           routes: auth, assistant, use_cases, runs, approvals, knowledge, triggers, workflows, executions, system
-  core/          settings, database, llm (Gemini/Ollama + fallback chain), security (passwords, tokens)
+  api/           routes: auth, assistant, use_cases, runs, approvals, knowledge, triggers, workflows, executions,
+                 system, usage
+  core/          settings, database, llm (Gemini/Ollama + fallback chain + token metering),
+                 security (passwords, tokens, Google ID tokens)
   integrations/  slack, hubspot, webhook, mail (IMAP)
-  models/        User, Run, Approval, Workflow, WorkflowExecution, KnowledgeDocument
+  models/        User, Run, Approval, Workflow, WorkflowExecution, KnowledgeDocument, AICall
   schemas/       API schemas + the structured AI result schemas
   services/      processing pipeline, runs, approvals, research, knowledge, workflow engine, inbox, stats,
-                 accounts, assistant (tool-calling chat)
+                 accounts, assistant (tool-calling chat), usage (AI calls and cost)
 backend/eval/    accuracy test set (cases.json), runner, saved reports
 backend/tests/   pytest suite (fake model, fake embeddings)
+docs/            README screenshots
 frontend/src/
-  app/           pages: login, overview, studio, history, workflows (+ builder), approvals, knowledge, integrations
+  app/           pages: login, overview, studio, history, workflows (+ builder), approvals, knowledge, usage,
+                 integrations
   components/    shell (sidebar, command palette), assistant drawer, Studio, run timeline/result, workflow builder, charts
   lib/           API client, auth, live-run hook, examples, workflow templates
 ```
@@ -176,6 +213,7 @@ Every endpoint except sign-in, the public triggers and health checks needs an `A
 | Endpoint | What it does |
 |----------|--------------|
 | `POST /api/auth/register` · `/api/auth/login` · `GET /api/auth/me` | Create an account, sign in (returns a token), current user |
+| `POST /api/auth/google` | Sign in with a Google ID token from the Google button |
 | `POST /api/auth/trigger-key/rotate` | Replace your trigger key |
 | `POST /api/assistant/chat` | Ask FlowMancer: send the conversation, get a reply plus the tools it used |
 | `POST /api/use-cases/qualify-lead` · `process-email` · `process-document` `?mode=quick\|crew` | Process and wait for the result |
@@ -187,6 +225,7 @@ Every endpoint except sign-in, the public triggers and health checks needs an `A
 | `POST /api/triggers/form?key=` · `/api/triggers/webhook/{workflow_id}?key=` · `/api/triggers/inbox/poll` | Triggers (form and webhook use your trigger key) |
 | `GET\|POST\|PUT\|DELETE /api/workflows…` · `POST /api/workflows/{id}/run` · `GET /api/executions/{id}` | Workflows |
 | `GET /api/stats` · `GET /api/integrations` | Dashboard data and status |
+| `GET /api/usage?days=7` | AI requests, tokens and estimated cost (by feature, model and day) |
 
 ```bash
 # Send a lead as if it came from your website form (key from the Integrations page)
@@ -204,19 +243,33 @@ docker compose up -d --build
 
 This starts PostgreSQL, the backend on port 8000 and the frontend on port 3000. Set `JWT_SECRET` in `backend/.env` first. Otherwise the container makes a new one each time it's rebuilt, and everyone has to sign in again.
 
+## Deploying
+
+A free setup that works: **Vercel** for the frontend, **Render** (Docker) for the backend, and **Neon** for PostgreSQL. The backend is built to run on a host whose disk is wiped on restart:
+
+- Accounts, runs and usage live in Postgres.
+- Knowledge-base documents are stored in the database too, and re-indexed automatically when the server starts.
+- The embedding model is baked into the Docker image.
+- The backend listens on the port the host provides (`$PORT`).
+
+Set these on the backend host: `GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET` (32+ random characters), `CORS_ORIGINS` (`["https://your-app.vercel.app"]`), and optionally `GOOGLE_CLIENT_ID` and `ALLOW_SIGNUPS=false`. On Vercel, set `NEXT_PUBLIC_API_URL` to the backend's address.
+
+Free hosts put the backend to sleep when it's idle. The first visit then takes up to a minute, and the app says it's waking up instead of failing.
+
 ---
 
 ## Known limitations
 
 - **Accounts are basic.** There's no password reset, email verification or roles. Rate limiting covers failed sign-ins only. The sign-in token is kept in the browser's local storage, so a script injected into the page could read it.
+- **Costs are estimates.** They use the token counts each model reports and the prices in `AI_PRICES`, not Google's bill. Usage before this feature was added isn't counted.
 - **Integrations are per server, not per account.** Every account posts to the same Slack channel and HubSpot portal, and the inbox belongs to one account.
 - **The accuracy test set is small** (30 cases written by the author). It catches regressions; it doesn't prove the model is right on real-world data.
 - **Research is best-effort.** Web results can be outdated or about a different company with the same name. Sources are shown so a person can check them.
 - **Scanned PDFs** (images) need OCR, which isn't included.
 - **The inbox uses IMAP app passwords,** not OAuth. Fetched emails are marked as read.
-- **Run one backend process.** The knowledge store is a local folder.
+- **Run one backend process.** The knowledge store is a local folder (rebuilt from the database on start-up).
 - **Gmail only for the inbox.** Outlook.com no longer accepts app passwords for IMAP.
-- **Live testing so far.** Slack has been tested against a live workspace. Gmail sign-in and access to the Inbox and Drafts folders work with a real account. Fetching emails and saving drafts are covered by the test suite but not yet tested end to end on that account. The Docker setup and HubSpot are tested with fakes only.
+- **Live testing so far.** Slack has been tested against a live workspace. Gmail sign-in and access to the Inbox and Drafts folders work with a real account. Fetching emails and saving drafts are covered by the test suite but not yet tested end to end on that account. The Docker setup and HubSpot are tested with fakes only. Google sign-in is tested with a fake token checker; the button itself renders on the sign-in page, but a real Google sign-in needs your own client ID.
 
 ## Author
 

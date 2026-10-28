@@ -8,11 +8,16 @@ Every AI call goes through a short chain of "targets":
 
 A target is skipped only for temporary problems (rate limit, overload, timeout,
 network). Real errors such as a bad API key are raised immediately.
+
+Every attempt (including failed ones) is recorded with its token counts for the
+Usage page; see app/services/usage.py.
 """
+import logging
 import re
 import threading
+import time
 from dataclasses import dataclass
-from typing import Callable, List, Type, TypeVar
+from typing import Any, Callable, List, Optional, Type, TypeVar
 
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
@@ -28,6 +33,7 @@ TRANSIENT = re.compile(
 )
 
 _used = threading.local()
+log = logging.getLogger("flowmancer.llm")
 
 
 class AIUnavailable(RuntimeError):
@@ -97,18 +103,76 @@ def crew_llm(target: Target, temperature: float = 0.4):
     return LLM(model=f"ollama/{target.model}", base_url=settings.OLLAMA_BASE_URL, temperature=temperature)
 
 
+# ---------------- usage metering ----------------
+@dataclass
+class Meter:
+    """Tokens and requests used by the current attempt."""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    requests: int = 0
+
+
+def note_tokens(input_tokens: Optional[int] = 0, output_tokens: Optional[int] = 0, requests: int = 1):
+    """Add usage to the attempt in progress on this thread (no-op outside with_fallback)."""
+    meter: Optional[Meter] = getattr(_used, "meter", None)
+    if meter is not None:
+        meter.input_tokens += int(input_tokens or 0)
+        meter.output_tokens += int(output_tokens or 0)
+        meter.requests += int(requests or 0)
+
+
+def counted(message: Any) -> Any:
+    """Record the token counts a LangChain AIMessage reports, and return it unchanged."""
+    usage = getattr(message, "usage_metadata", None) or {}
+    note_tokens(usage.get("input_tokens"), usage.get("output_tokens"))
+    return message
+
+
+RATE_LIMITED = re.compile(r"\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota", re.I)
+BUSY = re.compile(r"\b(500|502|503|504)\b|UNAVAILABLE|overloaded|high demand", re.I)
+TIMED_OUT = re.compile(r"timed? ?out|timeout", re.I)
+
+
+def outcome_of(error: Optional[Exception]) -> str:
+    if error is None:
+        return "ok"
+    text = f"{type(error).__name__} {error}"
+    for name, pattern in (("rate_limited", RATE_LIMITED), ("busy", BUSY), ("timeout", TIMED_OUT)):
+        if pattern.search(text):
+            return name
+    return "error"
+
+
+def _record(target: Target, fallback: bool, meter: Meter, seconds: float, error: Optional[Exception]):
+    try:
+        from app.services import usage  # late import: usage depends on the database layer
+        usage.record_attempt(provider=target.provider, model=target.model, fallback=fallback,
+                             status=outcome_of(error), error=str(error)[:300] if error else None,
+                             seconds=round(seconds, 2), input_tokens=meter.input_tokens,
+                             output_tokens=meter.output_tokens, requests=max(1, meter.requests))
+    except Exception:  # usage tracking must never break an AI call
+        log.warning("Could not record AI usage", exc_info=True)
+
+
 def with_fallback(call: Callable[[Target], T]) -> T:
     """Run `call` on each target until one succeeds. Only temporary errors move to the next target."""
     errors = []
-    for target in targets():
+    for position, target in enumerate(targets()):
+        meter = _used.meter = Meter()
+        started = time.monotonic()
         try:
             result = call(target)
-            _used.label = target.label
-            return result
         except Exception as e:
+            _record(target, position > 0, meter, time.monotonic() - started, e)
             if not is_transient(e):
                 raise
             errors.append(f"{target.label}: {str(e)[:200]}")
+            continue
+        finally:
+            _used.meter = None
+        _record(target, position > 0, meter, time.monotonic() - started, None)
+        _used.label = target.label
+        return result
     raise AIUnavailable("All AI models are busy or unreachable. " + " | ".join(errors))
 
 
@@ -121,7 +185,7 @@ def text_of(content) -> str:
 
 def ask(prompt: str, temperature: float = 0.2) -> str:
     """Send one prompt and return the reply text."""
-    return with_fallback(lambda t: text_of(chat_model(t, temperature).invoke([HumanMessage(content=prompt)]).content))
+    return with_fallback(lambda t: text_of(counted(chat_model(t, temperature).invoke([HumanMessage(content=prompt)])).content))
 
 
 def structured_invoke(schema: Type[T], prompt: str, retries: int = 1) -> T:
@@ -130,13 +194,16 @@ def structured_invoke(schema: Type[T], prompt: str, retries: int = 1) -> T:
     the output to the JSON schema; a malformed reply is retried on the same model.
     """
     def call(target: Target) -> T:
-        llm = chat_model(target, temperature=0).with_structured_output(schema)
+        # include_raw keeps the raw message, which carries the token counts
+        llm = chat_model(target, temperature=0).with_structured_output(schema, include_raw=True)
         last: Exception | None = None
         for _ in range(retries + 1):
             try:
-                result = llm.invoke([HumanMessage(content=prompt)])
+                out = llm.invoke([HumanMessage(content=prompt)])
+                counted(out.get("raw"))
+                result = out.get("parsed")
                 if result is None:
-                    raise ValueError("Model returned no structured output")
+                    raise ValueError(out.get("parsing_error") or "Model returned no structured output")
                 return result
             except Exception as e:
                 if is_transient(e):

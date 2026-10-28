@@ -8,27 +8,13 @@ import ArtTile from '@/components/ArtTile';
 import { useAssistant } from '@/components/assistant/AssistantProvider';
 import { ActivityChart, CategoryBars, QUALITY_COLORS, QualityDonut } from '@/components/charts';
 import Orb from '@/components/Orb';
-import { CountUp, Empty, ErrorBanner, Loading, Panel, rise, stagger, StatusBadge } from '@/components/ui';
+import { CountUp, Empty, ErrorBanner, Loading, Panel, rise, Stat, stagger, StatusBadge } from '@/components/ui';
 import { approvalsApi, runsApi } from '@/lib/api';
 import { useSystem } from '@/lib/system';
 import type { Approval, Run } from '@/types';
 import { greeting, summary, timeAgo, verdict } from '@/lib/utils';
 
 const KIND_ICON = { lead: Users, email: Mail, document: FileText };
-
-function Stat({ label, value, decimals, suffix, hint }: {
-  label: string; value: number | null | undefined; decimals?: number; suffix?: string; hint?: string;
-}) {
-  return (
-    <motion.div variants={rise} className="glass rounded-[22px] px-5 py-4">
-      <p className="eyebrow !text-[10px]">{label}</p>
-      <p className="mt-2 font-display text-[34px] leading-none text-bone">
-        {value === null || value === undefined ? '-' : <CountUp value={value} decimals={decimals} suffix={suffix} />}
-      </p>
-      {hint && <p className="mt-1 text-xs text-fog">{hint}</p>}
-    </motion.div>
-  );
-}
 
 function AICore({ recent, approvals }: { recent: Run[]; approvals: Approval[] }) {
   const { integrations } = useSystem();

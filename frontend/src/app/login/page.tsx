@@ -4,8 +4,10 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import GoogleButton from '@/components/GoogleButton';
 import Orb from '@/components/Orb';
 import { ErrorBanner, Field, Segmented, Spinner } from '@/components/ui';
+import WakingHint from '@/components/WakingHint';
 import { authApi, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -14,11 +16,13 @@ function safeNext(next: string | null): string {
 }
 
 function LoginForm() {
-  const { status, signIn, signUp } = useAuth();
+  const { status, signIn, signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [signupsOpen, setSignupsOpen] = useState(true);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,9 +33,21 @@ function LoginForm() {
   useEffect(() => {
     authApi.config().then((c) => {
       setSignupsOpen(c.signups_open);
+      setGoogleClientId(c.google_client_id);
       if (!c.has_users) setMode('signup');
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setConfigLoaded(true));
   }, []);
+
+  const google = async (credential: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithGoogle(credential);
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (status === 'signed-in') router.replace(next);
@@ -70,6 +86,16 @@ function LoginForm() {
             </div>
           )}
 
+          {googleClientId && (
+            <>
+              <GoogleButton clientId={googleClientId} onCredential={google} onError={setError}
+                text={mode === 'signup' ? 'signup_with' : 'signin_with'} />
+              <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-ash" aria-hidden>
+                <span className="h-px flex-1 bg-white/[0.08]" />or with email<span className="h-px flex-1 bg-white/[0.08]" />
+              </div>
+            </>
+          )}
+
           <form onSubmit={submit} className="space-y-4">
             <AnimatePresence initial={false}>
               {mode === 'signup' && (
@@ -106,6 +132,7 @@ function LoginForm() {
           </form>
           {!signupsOpen && <p className="mt-5 text-center text-xs text-fog">New accounts are turned off on this server.</p>}
         </div>
+        {!configLoaded && <div className="mt-5 text-center"><WakingHint /></div>}
       </motion.div>
     </div>
   );

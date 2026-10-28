@@ -91,6 +91,30 @@ def delete_document(doc_id: int):
     _get_collection().delete(where={"doc_id": doc_id})
 
 
+def is_indexed(doc_id: int) -> bool:
+    return bool(_get_collection().get(where={"doc_id": doc_id}, limit=1)["ids"])
+
+
+def rebuild_missing() -> int:
+    """
+    Re-index documents whose chunks are missing from the vector store, using the text kept
+    in the database. Hosts with a temporary disk (most free tiers) lose the store on every
+    restart; the database is the source of truth. Returns how many documents were re-indexed.
+    """
+    from app.core.database import session_scope
+    from app.models import KnowledgeDocument
+
+    rebuilt = 0
+    with session_scope() as db:
+        docs = db.query(KnowledgeDocument).filter(KnowledgeDocument.text.isnot(None)).all()
+        for doc in docs:
+            if doc.text and not is_indexed(doc.id):
+                doc.chunks = add_document(doc.id, doc.name, doc.text)
+                rebuilt += 1
+        db.commit()
+    return rebuilt
+
+
 def search(query: str, k: int = 4, max_distance: float = 0.75, doc_ids: Optional[List[int]] = None) -> List[dict]:
     """
     Top-k relevant chunks. Chunks beyond `max_distance` (cosine) are treated as unrelated.

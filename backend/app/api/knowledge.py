@@ -28,7 +28,7 @@ def user_doc_ids(db: Session, user_id: int) -> List[int]:
 
 
 def _add(db: Session, user: User, name: str, text: str) -> KnowledgeDocument:
-    doc = KnowledgeDocument(user_id=user.id, name=name[:255], characters=len(text), chunks=0)
+    doc = KnowledgeDocument(user_id=user.id, name=name[:255], characters=len(text), chunks=0, text=text)
     db.add(doc)
     db.commit()
     db.refresh(doc)

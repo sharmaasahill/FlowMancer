@@ -13,6 +13,7 @@ import CommandPalette from '@/components/shell/CommandPalette';
 import Sidebar, { Wordmark } from '@/components/shell/Sidebar';
 import { ToastProvider } from '@/components/Toast';
 import { Kbd, Loading } from '@/components/ui';
+import WakingHint from '@/components/WakingHint';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { SystemProvider, useSystem } from '@/lib/system';
 import { cn } from '@/lib/utils';
@@ -123,6 +124,23 @@ function Workspace({ children }: { children: React.ReactNode }) {
   );
 }
 
+function Unreachable() {
+  const { retry, signOut } = useAuth();
+  return (
+    <div className="grid h-[100dvh] place-items-center px-6">
+      <div className="glass-strong flex max-w-md flex-col items-center gap-4 p-8 text-center">
+        <Orb size={56} state="offline" />
+        <h1 className="font-display text-3xl text-bone">Can&apos;t reach the server</h1>
+        <p className="text-sm text-fog">FlowMancer&apos;s backend didn&apos;t answer. It may be starting up or offline. You&apos;re still signed in.</p>
+        <div className="flex gap-2">
+          <button type="button" onClick={retry} className="btn-primary">Try again</button>
+          <button type="button" onClick={signOut} className="btn-ghost">Sign out</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Gate({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const pathname = usePathname();
@@ -136,7 +154,17 @@ function Gate({ children }: { children: React.ReactNode }) {
   }, [status, isPublic, pathname, router]);
 
   if (isPublic) return <>{children}</>;
-  if (status !== 'signed-in') return <div className="grid h-[100dvh] place-items-center"><Loading label="Signing you in" /></div>;
+  if (status === 'unreachable') return <Unreachable />;
+  if (status !== 'signed-in') {
+    return (
+      <div className="grid h-[100dvh] place-items-center px-6">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loading label="Signing you in" />
+          <WakingHint />
+        </div>
+      </div>
+    );
+  }
   return (
     <SystemProvider>
       <AssistantProvider>

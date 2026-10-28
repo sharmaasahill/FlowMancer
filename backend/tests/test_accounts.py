@@ -66,7 +66,7 @@ def test_wrong_password_and_throttling(anon):
 
 def test_signups_can_be_closed(anon, monkeypatch):
     monkeypatch.setattr(settings, "ALLOW_SIGNUPS", False)
-    assert anon.get("/api/auth/config").json() == {"signups_open": True, "has_users": False}
+    assert anon.get("/api/auth/config").json() == {"signups_open": True, "has_users": False, "google_client_id": None}
     sign_up(anon, email="first@example.com")  # the first account is always allowed
     r = anon.post("/api/auth/register", json={"email": "second@example.com", "name": "x", "password": "long-enough-1"})
     assert r.status_code == 403
@@ -125,3 +125,93 @@ def test_inbox_owner(anon, monkeypatch, owner_email, expected):
     from app.services import accounts
     with session_scope() as db:
         assert accounts.inbox_owner(db).email == expected
+
+
+# ---------------- Sign in with Google ----------------
+GOOGLE_CLAIMS = {"iss": "https://accounts.google.com", "sub": "1098765", "email": "Asha@Gmail.com",
+                 "email_verified": True, "name": "Asha Rao"}
+
+
+@pytest.fixture
+def google(monkeypatch):
+    """Google sign-in enabled, with token checks replaced by `google.claims` (or `google.error`)."""
+    class Fake:
+        claims = dict(GOOGLE_CLAIMS)
+        error = None
+
+    def verify(credential):
+        if Fake.error:
+            raise security.GoogleTokenError(Fake.error)
+        return dict(Fake.claims)
+
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "123-abc.apps.googleusercontent.com")
+    monkeypatch.setattr(security, "verify_google_token", verify)
+    return Fake
+
+
+def google_login(c, **kw):
+    return c.post("/api/auth/google", json={"credential": "x" * 40}, **kw)
+
+
+def test_google_client_id_is_published(anon, google):
+    assert anon.get("/api/auth/config").json()["google_client_id"] == "123-abc.apps.googleusercontent.com"
+
+
+def test_google_sign_up_then_sign_in(anon, google):
+    r = google_login(anon)
+    assert r.status_code == 200, r.text
+    user = r.json()["user"]
+    assert user["email"] == "asha@gmail.com" and user["name"] == "Asha Rao"
+    assert user["google_linked"] is True and user["has_password"] is False
+    me = anon.get("/api/auth/me", headers={"Authorization": f"Bearer {r.json()['token']}"})
+    assert me.json()["id"] == user["id"]
+
+    assert google_login(anon).json()["user"]["id"] == user["id"]  # same account next time
+    # No password exists, so password sign-in explains what to do
+    r = anon.post("/api/auth/login", json={"email": "asha@gmail.com", "password": "anything"})
+    assert r.status_code == 401 and "Google" in r.json()["detail"]
+
+
+def test_google_links_an_existing_account_with_the_same_email(anon, google):
+    existing = sign_up(anon, email="asha@gmail.com", name="Asha")
+    r = google_login(anon)
+    assert r.json()["user"]["id"] == existing["user"]["id"]
+    assert r.json()["user"]["google_linked"] and r.json()["user"]["has_password"]
+    # The password still works too
+    assert anon.post("/api/auth/login", json={"email": "asha@gmail.com", "password": "correct-horse-1"}).status_code == 200
+
+
+def test_google_rejects_unverified_email(anon, google):
+    google.claims = {**GOOGLE_CLAIMS, "email_verified": False}
+    assert google_login(anon).status_code == 403
+
+
+def test_google_rejects_bad_tokens(anon, google):
+    google.error = "Google sign-in failed: Token expired"
+    r = google_login(anon)
+    assert r.status_code == 401 and "expired" in r.json()["detail"]
+
+
+def test_google_email_taken_by_another_google_account(anon, google):
+    google_login(anon)
+    google.claims = {**GOOGLE_CLAIMS, "sub": "different-person"}
+    assert google_login(anon).status_code == 409
+
+
+def test_google_respects_closed_signups(anon, google, monkeypatch):
+    sign_up(anon, email="first@example.com")
+    monkeypatch.setattr(settings, "ALLOW_SIGNUPS", False)
+    assert google_login(anon).status_code == 403
+
+
+def test_first_google_account_claims_existing_data(anon, google):
+    with session_scope() as db:
+        db.add(Run(kind="lead", mode="quick", status="completed", source="api", input_data=LEAD))
+        db.commit()
+    headers = {"Authorization": f"Bearer {google_login(anon).json()['token']}"}
+    assert anon.get("/api/runs/", headers=headers).json()["total"] == 1
+
+
+def test_google_sign_in_off_when_not_configured(anon):
+    r = google_login(anon)  # real verifier, no client ID set
+    assert r.status_code == 401 and "not set up" in r.json()["detail"]

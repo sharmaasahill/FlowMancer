@@ -53,7 +53,26 @@ export const STATUS_TONES: Record<string, string> = {
   failed: 'text-coral bg-coral/[0.08] border-coral/25',
   error: 'text-coral bg-coral/[0.08] border-coral/25',
   rejected: 'text-coral bg-coral/[0.08] border-coral/25',
+  // AI call outcomes (Usage page)
+  ok: 'text-jade bg-jade/[0.08] border-jade/25',
+  rate_limited: 'text-amber bg-amber/[0.08] border-amber/25',
+  busy: 'text-amber bg-amber/[0.08] border-amber/25',
+  timeout: 'text-amber bg-amber/[0.08] border-amber/25',
 };
+
+/** 48213 -> "48.2K" */
+export function compactNumber(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '-';
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+}
+
+/** Dollar amounts too small for cents still show a value: 0.00038 -> "$0.0004". */
+export function formatUsd(v: number | null | undefined): string {
+  if (v === null || v === undefined) return '-';
+  if (v === 0) return '$0.00';
+  if (v < 0.0001) return '<$0.0001';
+  return `$${v < 1 ? v.toFixed(4) : v.toFixed(2)}`;
+}
 
 export const LEVEL_TONES: Record<string, string> = {
   High: 'text-white bg-crimson border-crimson-400/50',
