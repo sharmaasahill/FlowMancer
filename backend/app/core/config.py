@@ -3,10 +3,10 @@ Application settings, loaded from environment variables / backend/.env.
 Only GEMINI_API_KEY is required; everything else has a working default.
 """
 import json
-from typing import Dict, List
+from typing import Annotated, Dict, List
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -18,7 +18,8 @@ class Settings(BaseSettings):
 
     # SQLite for local dev; postgresql://user:pass@host:5432/db in production
     DATABASE_URL: str = "sqlite:///./flowmancer.db"
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # Frontend addresses allowed to call the API. Accepts a JSON list or a comma-separated list.
+    CORS_ORIGINS: Annotated[List[str], NoDecode] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # ---------- Accounts ----------
     # Signs login tokens. Empty = generate one and keep it in ./.flowmancer_secret (fine for local use;
@@ -85,7 +86,20 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors(cls, v):
-        return json.loads(v) if isinstance(v, str) else v
+        """
+        Accept ["https://a.app", "https://b.app"], https://a.app,https://b.app or a single address.
+        Browsers send the Origin without a trailing slash, so one is removed if pasted.
+        """
+        if isinstance(v, str):
+            text = v.strip().replace("\u201c", '"').replace("\u201d", '"')  # "smart" quotes from copy-paste
+            try:
+                parsed = json.loads(text) if text.startswith("[") else None
+            except json.JSONDecodeError:
+                parsed = None
+            if parsed is None:
+                parsed = text.strip("[]").split(",")
+            v = parsed if isinstance(parsed, list) else [parsed]
+        return [str(o).strip().strip("'\"").rstrip("/") for o in v if str(o).strip().strip("'\"")]
 
     @field_validator("DATABASE_URL")
     @classmethod

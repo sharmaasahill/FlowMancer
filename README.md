@@ -55,7 +55,7 @@ You can also ask questions in plain English ("which hot leads came in this week?
 - **Actions:** Slack, HubSpot, mailbox reply drafts, and outbound webhooks for Zapier, n8n and Make.
 - **Visual workflow builder.** Drag-and-drop trigger, AI, condition and action steps, with templates. Graphs are validated on save (one trigger, no loops), and a test run lights up the path it took.
 - **Dashboard.** Live counts, activity charts, an AI status panel and full run history.
-- **Tests.** 105 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
+- **Tests.** 114 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
 - **Accuracy test set in CI.** 30 labelled cases scored against the real model, with a Markdown report. It runs weekly, on demand, and on pull requests that change prompts or the AI code.
 
 ## Tech stack
@@ -146,7 +146,7 @@ Everything lives in `backend/.env`. Only `GEMINI_API_KEY` is required. [`backend
 | `INBOX_OWNER_EMAIL` | Account that receives emails from the IMAP inbox | first account |
 | `GOOGLE_CLIENT_ID` | Shows the "Sign in with Google" button. See [Sign in with Google](#sign-in-with-google) | - |
 | `DATABASE_URL` | Database. Hosted Postgres URLs (`postgres://…` or `postgresql://…`) work as given | local SQLite file |
-| `CORS_ORIGINS` | Frontend addresses allowed to call the API, as a JSON list | `localhost:3000` |
+| `CORS_ORIGINS` | Frontend addresses allowed to call the API: one address, a comma-separated list, or a JSON list | `localhost:3000` |
 | `AI_PRICES` | Paid-tier prices per 1M tokens for the Usage page's cost estimate | current Gemini prices |
 
 Integrations you haven't set up are reported as "skipped" and never break a run. The **Integrations** page shows what's connected. Slack, HubSpot and the inbox are set once per server and shared by all accounts.
@@ -252,7 +252,7 @@ A free setup that works: **Vercel** for the frontend, **Render** (Docker) for th
 - The embedding model is baked into the Docker image.
 - The backend listens on the port the host provides (`$PORT`).
 
-Set these on the backend host: `GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET` (32+ random characters), `CORS_ORIGINS` (`["https://your-app.vercel.app"]`), and optionally `GOOGLE_CLIENT_ID` and `ALLOW_SIGNUPS=false`. On Vercel, set `NEXT_PUBLIC_API_URL` to the backend's address.
+Set these on the backend host: `GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET` (32+ random characters), `CORS_ORIGINS` (`https://your-app.vercel.app`), and optionally `GOOGLE_CLIENT_ID` and `ALLOW_SIGNUPS=false`. On Vercel, set `NEXT_PUBLIC_API_URL` to the backend's address.
 
 Free hosts put the backend to sleep when it's idle. The first visit then takes up to a minute, and the app says it's waking up instead of failing.
 
