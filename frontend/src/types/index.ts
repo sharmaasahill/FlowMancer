@@ -109,9 +109,13 @@ export interface Run {
   duration_seconds: number | null;
 }
 
+/** A run as returned by list endpoints: identifying input fields and the verdict only. */
+export type RunSummary = Pick<Run, 'id' | 'kind' | 'mode' | 'status' | 'source' | 'input_data' | 'ai_model' | 'error'
+  | 'created_at' | 'completed_at' | 'duration_seconds'> & { output: Record<string, any> | null };
+
 export interface RunList {
   total: number;
-  items: Run[];
+  items: RunSummary[];
 }
 
 export type ApprovalAction = 'email_reply' | 'crm_contact' | 'document_approval' | 'slack_message';

@@ -29,7 +29,7 @@ function Shell({ id, type, icon: Icon, title, subtitle, selected }: {
   const status = useContext(RunStatusContext)[id];
   return (
     <div className={cn(
-      'w-56 rounded-2xl border bg-noir-800/95 px-3 py-2.5 shadow-glass backdrop-blur-md transition duration-300',
+      'w-56 rounded-2xl border bg-noir-800 px-3 py-2.5 shadow-glass transition duration-300',
       selected ? 'border-blush/70 ring-2 ring-blush/30' : 'border-white/[0.09]',
       status === 'completed' && 'border-crimson-400/70 shadow-[0_0_0_1px_rgba(214,69,69,0.4),0_0_28px_-4px_rgba(214,69,69,0.7)]',
       status === 'failed' && 'border-coral/70 shadow-[0_0_24px_-6px_rgba(255,138,122,0.8)]',

@@ -80,7 +80,7 @@ export default function CommandPalette({ open, onClose, onAsk }: { open: boolean
       {open && (
         <motion.div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[14vh]"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <div className="absolute inset-0 bg-noir-950/70 backdrop-blur-sm" onClick={onClose} aria-hidden />
+          <div className="absolute inset-0 bg-noir-950/80" onClick={onClose} aria-hidden />
           <motion.div role="dialog" aria-modal="true" aria-label="Command palette"
             initial={{ opacity: 0, y: -12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }} transition={{ type: 'spring', stiffness: 420, damping: 32 }}

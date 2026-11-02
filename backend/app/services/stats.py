@@ -6,7 +6,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Dict
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from app.models import Approval, KnowledgeDocument, Run, Workflow, WorkflowExecution
 
@@ -19,7 +19,10 @@ def _as_utc(dt: datetime) -> datetime:
 
 def compute(db: Session, user_id: int) -> Dict:
     """Statistics for one user's data."""
-    runs = db.query(Run).filter(Run.user_id == user_id).all()
+    # Only the columns the numbers need; inputs, steps and sources can be large
+    runs = (db.query(Run).filter(Run.user_id == user_id)
+            .options(load_only(Run.id, Run.kind, Run.mode, Run.status, Run.output, Run.duration_seconds, Run.created_at))
+            .all())
     completed = [r for r in runs if r.status == "completed"]
     failed = [r for r in runs if r.status == "failed"]
     durations = [r.duration_seconds for r in completed if r.duration_seconds is not None]

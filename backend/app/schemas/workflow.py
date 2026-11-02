@@ -113,9 +113,27 @@ class RunResponse(BaseModel):
     duration_seconds: Optional[float] = None
 
 
+class RunSummary(BaseModel):
+    """A run as shown in lists: enough for the title and verdict, without long text."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: str
+    mode: str
+    status: str
+    source: str
+    input_data: Optional[Dict[str, Any]] = None   # only the short identifying fields
+    output: Optional[Dict[str, Any]] = None       # only the verdict fields
+    ai_model: Optional[str] = None
+    error: Optional[str] = None
+    created_at: Optional[UTCDateTime] = None
+    completed_at: Optional[UTCDateTime] = None
+    duration_seconds: Optional[float] = None
+
+
 class RunList(BaseModel):
     total: int
-    items: List[RunResponse]
+    items: List[RunSummary]
 
 
 # ---------- Approvals ----------

@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import { CheckSquare, Menu, Search, X } from 'lucide-react';
-import AssistantPanel from '@/components/assistant/AssistantPanel';
+import dynamic from 'next/dynamic';
 import { AssistantProvider, useAssistant } from '@/components/assistant/AssistantProvider';
 import Orb from '@/components/Orb';
 import Backdrop from '@/components/shell/Backdrop';
-import CommandPalette from '@/components/shell/CommandPalette';
+
 import Sidebar, { Wordmark } from '@/components/shell/Sidebar';
 import { ToastProvider } from '@/components/Toast';
 import { Kbd, Loading } from '@/components/ui';
@@ -17,6 +17,10 @@ import WakingHint from '@/components/WakingHint';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { SystemProvider, useSystem } from '@/lib/system';
 import { cn } from '@/lib/utils';
+
+// Closed until used, so they load after the page instead of with it
+const AssistantPanel = dynamic(() => import('@/components/assistant/AssistantPanel'), { ssr: false });
+const CommandPalette = dynamic(() => import('@/components/shell/CommandPalette'), { ssr: false });
 
 // Pages anyone can open without signing in
 const PUBLIC_PATHS = ['/login', '/about', '/privacy', '/terms'];
@@ -30,7 +34,8 @@ function TopBar({ onSearch, onMenu }: { onSearch: () => void; onMenu: () => void
 
   return (
     <div className="sticky top-0 z-30 flex items-center gap-3 px-5 py-4 lg:px-10">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-noir-900/90 via-noir-900/60 to-transparent backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_60%,transparent)]" />
+      {/* A solid fade instead of a backdrop blur: blurring the scrolling page under a sticky bar re-renders it on every scroll frame */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-noir-900 via-noir-900/85 to-transparent" />
       <button type="button" onClick={onMenu} aria-label="Open menu"
         className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-white/[0.03] text-bone lg:hidden">
         <Menu className="h-5 w-5" aria-hidden />
@@ -91,7 +96,8 @@ function Workspace({ children }: { children: React.ReactNode }) {
   return (
     <>
       <div className="flex h-[100dvh] p-0 lg:p-4">
-        <div className="flex min-w-0 flex-1 overflow-hidden border-white/[0.06] bg-noir-900/55 shadow-lift backdrop-blur-2xl lg:rounded-[30px] lg:border">
+        {/* No backdrop blur here: the background is already soft, and blurring the whole screen is the most expensive effect */}
+        <div className="flex min-w-0 flex-1 overflow-hidden border-white/[0.06] bg-noir-900/70 shadow-lift lg:rounded-[30px] lg:border">
           <aside className="hidden w-[256px] shrink-0 border-r border-white/[0.05] py-5 lg:block">
             <Sidebar />
           </aside>
@@ -105,7 +111,7 @@ function Workspace({ children }: { children: React.ReactNode }) {
       <AnimatePresence>
         {drawer && (
           <motion.div className="fixed inset-0 z-50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0 bg-noir-950/70 backdrop-blur-sm" onClick={() => setDrawer(false)} aria-hidden />
+            <div className="absolute inset-0 bg-noir-950/80" onClick={() => setDrawer(false)} aria-hidden />
             <motion.aside initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }}
               transition={{ type: 'spring', stiffness: 380, damping: 36 }}
               className={cn('glass-strong absolute inset-y-3 left-3 w-[270px] !rounded-[26px] py-5')}

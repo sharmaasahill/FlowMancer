@@ -90,6 +90,9 @@ export const LEVEL_TONES: Record<string, string> = {
   needs_review: 'text-amber bg-amber/[0.08] border-amber/25',
 };
 
+/** Lead quality colours (dashboard donut and its legend). */
+export const QUALITY_COLORS: Record<string, string> = { High: '#D64545', Medium: '#C98F8F', Low: '#3A2D31' };
+
 /** One-line description of a run for lists. */
 export function summary(r: { kind: string; input_data: Record<string, any> | null; output: Record<string, any> | null }): string {
   const i = r.input_data || {};

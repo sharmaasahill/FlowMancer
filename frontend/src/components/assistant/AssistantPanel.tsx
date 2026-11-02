@@ -94,7 +94,7 @@ export default function AssistantPanel() {
     <AnimatePresence>
       {open && (
         <>
-          <motion.div className="fixed inset-0 z-40 bg-noir-950/40 backdrop-blur-[2px] lg:hidden" onClick={() => setOpen(false)}
+          <motion.div className="fixed inset-0 z-40 bg-noir-950/60 lg:hidden" onClick={() => setOpen(false)}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} aria-hidden />
           <motion.aside role="dialog" aria-label="Ask FlowMancer"
             initial={{ x: '105%' }} animate={{ x: 0 }} exit={{ x: '105%' }} transition={{ type: 'spring', stiffness: 340, damping: 36 }}

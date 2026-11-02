@@ -1,48 +1,31 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
 venv/
-ENV/
+.venv/
 *.egg-info/
-dist/
-build/
 
-# Node
+# Node / Next.js
 node_modules/
 .next/
 out/
-*.log
-npm-debug.log*
+*.tsbuildinfo
 
-# Environment
+# Secrets and local settings
 .env
 .env.local
 .env.*.local
-*.env
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Database
+# Local data
 *.db
 *.sqlite3
 postgres_data/
 
-# Logs
-logs/
+# Logs, editors, OS
 *.log
-
-
-# TypeScript incremental build cache
-*.tsbuildinfo
+logs/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

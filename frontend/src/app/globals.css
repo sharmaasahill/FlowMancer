@@ -54,13 +54,18 @@
 }
 
 @layer components {
-  /* Dark glass. The app frame does the blurring; cards only add a sheen (cheaper to render). */
+  /*
+   * Dark glass, drawn with a translucent sheen instead of backdrop-filter.
+   * Backdrop blur re-renders whatever is behind on every scroll or mouse move, which is what made the app lag.
+   */
   .glass {
     @apply rounded-3xl border border-white/[0.07] shadow-glass;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)), rgba(20, 16, 17, 0.55);
   }
+  /* Panels that float above the page (dialogs, drawers, tooltips): nearly opaque, so no blur is needed */
   .glass-strong {
-    @apply rounded-3xl border border-white/[0.09] bg-noir-800/80 shadow-lift backdrop-blur-2xl;
+    @apply rounded-3xl border border-white/[0.09] shadow-lift;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)), rgba(27, 21, 23, 0.97);
   }
   .hairline {
     @apply border-white/[0.07];

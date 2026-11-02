@@ -1,8 +1,10 @@
 'use client';
 
+/* Import these through '@/components/charts.lazy' so the chart library loads after the page. */
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+import { QUALITY_COLORS } from '@/lib/utils';
 
 const AXIS = { fontSize: 11, fill: '#A89EA1', fontFamily: 'var(--font-mono)' };
 
@@ -51,8 +53,6 @@ export function ActivityChart({ data }: { data: { label: string; lead: number; e
     </ResponsiveContainer>
   );
 }
-
-export const QUALITY_COLORS: Record<string, string> = { High: '#D64545', Medium: '#C98F8F', Low: '#3A2D31' };
 
 export function QualityDonut({ data }: { data: { name: string; value: number }[] }) {
   return (

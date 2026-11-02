@@ -16,7 +16,7 @@ function Connection({ icon: Icon, name, on, detail, setting }: {
 }) {
   return (
     <motion.div variants={rise} className={cn('glass relative overflow-hidden !rounded-[22px] p-5', on && 'border-crimson-400/25')}>
-      {on && <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-crimson/30 blur-3xl" aria-hidden />}
+      {on && <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full" style={{ background: 'radial-gradient(circle, rgba(155,19,19,0.3), transparent 70%)' }} aria-hidden />}
       <div className="relative flex items-start justify-between">
         <span className={cn('grid h-11 w-11 place-items-center rounded-2xl border', on ? 'border-crimson-400/40 bg-crimson/25 text-blush' : 'border-white/[0.07] bg-white/[0.03] text-fog')}>
           <Icon className="h-5 w-5" aria-hidden />

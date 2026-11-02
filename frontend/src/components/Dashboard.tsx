@@ -6,17 +6,18 @@ import { motion } from 'framer-motion';
 import { ArrowRight, FileText, Mail, Users } from 'lucide-react';
 import ArtTile from '@/components/ArtTile';
 import { useAssistant } from '@/components/assistant/AssistantProvider';
-import { ActivityChart, CategoryBars, QUALITY_COLORS, QualityDonut } from '@/components/charts';
+import { ActivityChart, CategoryBars, QualityDonut } from '@/components/charts.lazy';
+import { QUALITY_COLORS } from '@/lib/utils';
 import Orb from '@/components/Orb';
 import { CountUp, Empty, ErrorBanner, Loading, Panel, rise, Stat, stagger, StatusBadge } from '@/components/ui';
 import { approvalsApi, runsApi } from '@/lib/api';
 import { useSystem } from '@/lib/system';
-import type { Approval, Run } from '@/types';
+import type { Approval, RunSummary } from '@/types';
 import { greeting, summary, timeAgo, verdict } from '@/lib/utils';
 
 const KIND_ICON = { lead: Users, email: Mail, document: FileText };
 
-function AICore({ recent, approvals }: { recent: Run[]; approvals: Approval[] }) {
+function AICore({ recent, approvals }: { recent: RunSummary[]; approvals: Approval[] }) {
   const { integrations } = useSystem();
   const ai = integrations?.ai;
   const live = recent.filter((r) => r.status === 'running' || r.status === 'queued');
@@ -80,7 +81,7 @@ function AICore({ recent, approvals }: { recent: Run[]; approvals: Approval[] })
 
 export default function Dashboard() {
   const { stats, error } = useSystem();
-  const [recent, setRecent] = useState<Run[]>([]);
+  const [recent, setRecent] = useState<RunSummary[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [now, setNow] = useState<Date | null>(null);
 
@@ -91,7 +92,8 @@ export default function Dashboard() {
       approvalsApi.list('pending').then(setApprovals).catch(() => {});
     };
     load();
-    const t = setInterval(load, 10000);
+    // Every 10 s, but not while the tab is in the background
+    const t = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 10000);
     return () => clearInterval(t);
   }, []);
 

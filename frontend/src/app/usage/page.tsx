@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Bot, ExternalLink, FileText, Mail, Users } from 'lucide-react';
-import { TokenChart } from '@/components/charts';
+import { TokenChart } from '@/components/charts.lazy';
 import { Badge, Empty, ErrorBanner, Loading, PageHeader, Panel, Segmented, Stat, stagger, StatusBadge } from '@/components/ui';
 import { errorMessage, systemApi } from '@/lib/api';
 import type { UsageFeature, UsageReport } from '@/types';

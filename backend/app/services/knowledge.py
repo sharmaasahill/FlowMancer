@@ -42,12 +42,6 @@ def _get_collection():
         return _collection
 
 
-def reset_cache():
-    global _collection
-    with _lock:
-        _collection = None
-
-
 def chunk_text(text: str, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> List[str]:
     """Split on paragraph boundaries where possible, falling back to hard cuts."""
     text = text.replace("\r\n", "\n").strip()

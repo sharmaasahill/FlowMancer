@@ -9,10 +9,11 @@ import { cn } from '@/lib/utils';
 type Variant = 'lead' | 'email' | 'document';
 
 /* Each tile is generated from layered gradients + line art, so no image assets are needed. */
-const ART: Record<Variant, { base: string; blobs: string[]; lines: React.ReactNode }> = {
+/* Glows are gradients, not blurred shapes, so hovering doesn't re-blur the tile on every frame. */
+const ART: Record<Variant, { base: string; glow: string; lines: React.ReactNode }> = {
   lead: {
     base: 'radial-gradient(120% 120% at 85% 10%, #5C0A0A 0%, #1B0B0C 45%, #0E0A0B 100%)',
-    blobs: ['right-[-12%] top-[-18%] h-[85%] w-[70%] bg-crimson-500/80', 'left-[5%] bottom-[-35%] h-[70%] w-[55%] bg-blush/25'],
+    glow: 'radial-gradient(45% 55% at 82% 18%, rgba(185,35,35,0.75), transparent 72%), radial-gradient(35% 45% at 30% 100%, rgba(242,184,181,0.22), transparent 72%)',
     lines: (
       <g fill="none" stroke="#F2B8B5" strokeOpacity="0.22">
         {[38, 70, 102, 134, 166, 198].map((r) => <circle key={r} cx="78%" cy="30%" r={r} />)}
@@ -22,7 +23,7 @@ const ART: Record<Variant, { base: string; blobs: string[]; lines: React.ReactNo
   },
   email: {
     base: 'radial-gradient(130% 120% at 10% 0%, #3F0606 0%, #160C0D 50%, #0E0A0B 100%)',
-    blobs: ['left-[-20%] top-[-30%] h-[90%] w-[80%] bg-rose/40', 'right-[-10%] bottom-[-40%] h-[80%] w-[60%] bg-crimson/60'],
+    glow: 'radial-gradient(50% 55% at 18% 10%, rgba(201,143,143,0.38), transparent 72%), radial-gradient(40% 50% at 80% 95%, rgba(155,19,19,0.6), transparent 72%)',
     lines: (
       <g fill="none" stroke="#F2B8B5" strokeOpacity="0.2">
         {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -33,7 +34,7 @@ const ART: Record<Variant, { base: string; blobs: string[]; lines: React.ReactNo
   },
   document: {
     base: 'radial-gradient(120% 140% at 100% 100%, #7A0E0E 0%, #200B0C 45%, #0E0A0B 100%)',
-    blobs: ['right-[-15%] bottom-[-30%] h-[95%] w-[75%] bg-crimson-600/75', 'left-[-10%] top-[-25%] h-[60%] w-[50%] bg-bone/[0.08]'],
+    glow: 'radial-gradient(48% 58% at 78% 85%, rgba(155,19,19,0.72), transparent 72%), radial-gradient(32% 40% at 15% 8%, rgba(244,236,236,0.08), transparent 72%)',
     lines: (
       <g fill="none" stroke="#F4ECEC" strokeOpacity="0.16">
         {[0, 1, 2].map((i) => (
@@ -56,18 +57,17 @@ export default function ArtTile({ variant, href, title, value, detail, className
         className="group relative flex h-full flex-col justify-between overflow-hidden rounded-[26px] border border-white/[0.08] p-6 shadow-lift transition-[transform,box-shadow] duration-500 [transition-timing-function:cubic-bezier(.16,1,.3,1)] hover:-translate-y-1 hover:shadow-ember focus-visible:-translate-y-1"
         style={{ background: art.base }}>
         {/* painterly layer: drifts and grows on hover */}
-        <div className="absolute inset-0 transition-transform duration-[1200ms] [transition-timing-function:cubic-bezier(.16,1,.3,1)] group-hover:scale-110 group-hover:rotate-1" aria-hidden>
-          {art.blobs.map((b) => <div key={b} className={cn('absolute rounded-full blur-3xl', b)} />)}
-        </div>
+        <div className="absolute inset-0 transition-transform duration-[1200ms] will-change-transform [transition-timing-function:cubic-bezier(.16,1,.3,1)] group-hover:scale-110 group-hover:rotate-1"
+          style={{ background: art.glow }} aria-hidden />
         <svg className="absolute inset-0 h-full w-full transition-transform duration-[1400ms] group-hover:translate-x-2" aria-hidden>
           {art.lines}
         </svg>
-        <div className="grain absolute inset-0 opacity-[0.16] mix-blend-overlay" aria-hidden />
+        <div className="grain absolute inset-0 opacity-[0.07]" aria-hidden />
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-noir-950/85 to-transparent" aria-hidden />
 
         <div className="relative flex items-start justify-between">
           <span className="eyebrow !text-bone/75">{title}</span>
-          <span className="grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md transition duration-500 group-hover:rotate-45 group-hover:bg-white group-hover:text-noir-900">
+          <span className="grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-white/15 text-white transition duration-500 group-hover:rotate-45 group-hover:bg-white group-hover:text-noir-900">
             <ArrowUpRight className="h-4 w-4" aria-hidden />
           </span>
         </div>

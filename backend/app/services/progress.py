@@ -66,14 +66,6 @@ class StepTracker:
             step["output"] = reason
         self._emit()
 
-    def fail(self, name: str, error: str):
-        with self._lock:
-            step = self._find(name)
-            step["status"] = "failed"
-            step["finished_at"] = _now()
-            step["output"] = error[:2000]
-        self._emit()
-
     def fail_running(self, error: str):
         """Mark whichever step is running as failed (used when an exception escapes)."""
         with self._lock:

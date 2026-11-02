@@ -11,12 +11,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from app.api.deps import current_user, owned
 from app.core.database import get_db, session_scope
 from app.models import Approval, Run, User
-from app.schemas import ApprovalResponse, RunList, RunResponse
+from app.schemas import ApprovalResponse, RunList, RunResponse, RunSummary
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -39,8 +39,27 @@ def list_runs(
         if value:
             q = q.filter(column == value)
     total = q.count()
-    items = q.order_by(Run.id.desc()).offset(offset).limit(limit).all()
-    return RunList(total=total, items=[RunResponse.model_validate(r) for r in items])
+    # Skip the large columns (steps, sources, knowledge, crew text); the detail endpoint has them
+    items = q.options(load_only(*LIST_COLUMNS)).order_by(Run.id.desc()).offset(offset).limit(limit).all()
+    return RunList(total=total, items=[summarize(r) for r in items])
+
+
+LIST_COLUMNS = (Run.id, Run.kind, Run.mode, Run.status, Run.source, Run.input_data, Run.output, Run.ai_model,
+                Run.error, Run.created_at, Run.completed_at, Run.duration_seconds)
+# Fields lists display (see summary() and verdict() in frontend/src/lib/utils.ts)
+LIST_INPUT_FIELDS = ("name", "company", "email", "from_email", "subject", "file_name", "document_type")
+LIST_OUTPUT_FIELDS = ("lead_score", "qualification", "category", "priority", "sentiment", "document_type",
+                      "total_amount", "currency", "counterparty", "validation_status", "approval_required")
+
+
+def summarize(run: Run) -> RunSummary:
+    pick = lambda data, keys: {k: data[k] for k in keys if k in data} if isinstance(data, dict) else None  # noqa: E731
+    return RunSummary(
+        id=run.id, kind=run.kind, mode=run.mode, status=run.status, source=run.source,
+        input_data=pick(run.input_data, LIST_INPUT_FIELDS), output=pick(run.output, LIST_OUTPUT_FIELDS),
+        ai_model=run.ai_model, error=(run.error or "")[:300] or None, created_at=run.created_at,
+        completed_at=run.completed_at, duration_seconds=run.duration_seconds,
+    )
 
 
 @router.get("/{run_id}", response_model=RunResponse)

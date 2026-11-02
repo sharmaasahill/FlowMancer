@@ -62,7 +62,7 @@ function ApprovalCard({ approval, onDecided }: { approval: Approval; onDecided: 
 
   return (
     <motion.article layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)', transition: { duration: 0.28 } }}
+      exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.28 } }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="glass flex flex-col p-6" aria-label={approval.title}>
       <div className="flex items-start gap-4">
