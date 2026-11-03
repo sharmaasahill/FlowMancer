@@ -7,9 +7,16 @@ const display = Instrument_Serif({ subsets: ['latin'], weight: '400', style: ['n
 const sans = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-sans' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://flowmancer.vercel.app';
+const DESCRIPTION = 'AI that reads your leads, emails and invoices, and prepares the next step. A person approves before anything goes out.';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { default: 'FlowMancer', template: '%s · FlowMancer' },
-  description: 'AI that reads your leads, emails and documents, and proposes what to do next.',
+  description: DESCRIPTION,
+  // Link previews on LinkedIn, WhatsApp, Slack and X (the image is app/opengraph-image.png)
+  openGraph: { type: 'website', siteName: 'FlowMancer', title: 'FlowMancer: AI that asks before it acts', description: DESCRIPTION, url: '/' },
+  twitter: { card: 'summary_large_image', title: 'FlowMancer: AI that asks before it acts', description: DESCRIPTION },
   // Google Search Console "HTML tag" verification code (set on Vercel; empty = no tag)
   verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
 };

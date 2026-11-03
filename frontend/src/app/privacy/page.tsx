@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       <Prose title="Privacy policy" updated="28 October 2026">
         <p>
           FlowMancer (&quot;we&quot;) is a portfolio project run by Sahil Kumar Sharma at{' '}
-          <Link href="/about">flowmancer.vercel.app</Link>. This page explains what data the app collects, why, and what you
+          <Link href="/">flowmancer.vercel.app</Link>. This page explains what data the app collects, why, and what you
           can do about it. Questions: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </p>
 

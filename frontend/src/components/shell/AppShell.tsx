@@ -22,8 +22,9 @@ import { cn } from '@/lib/utils';
 const AssistantPanel = dynamic(() => import('@/components/assistant/AssistantPanel'), { ssr: false });
 const CommandPalette = dynamic(() => import('@/components/shell/CommandPalette'), { ssr: false });
 
-// Pages anyone can open without signing in
-const PUBLIC_PATHS = ['/login', '/about', '/privacy', '/terms'];
+// Pages anyone can open without signing in: the landing page (exactly "/") and these sections
+const PUBLIC_PREFIXES = ['/login', '/about', '/privacy', '/terms'];
+const isPublicPath = (pathname: string) => pathname === '/' || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
 function TopBar({ onSearch, onMenu }: { onSearch: () => void; onMenu: () => void }) {
   const { stats } = useSystem();
@@ -152,11 +153,11 @@ function Gate({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublic = isPublicPath(pathname);
 
   useEffect(() => {
     if (status === 'signed-out' && !isPublic) {
-      router.replace(`/login${pathname && pathname !== '/' ? `?next=${encodeURIComponent(pathname)}` : ''}`);
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
   }, [status, isPublic, pathname, router]);
 

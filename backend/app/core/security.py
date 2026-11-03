@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+import httpx
 import jwt
 
 from app.core.config import settings
@@ -107,3 +108,58 @@ def verify_google_token(credential: str) -> dict:
     if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
         raise GoogleTokenError("Google sign-in failed: unexpected issuer.")
     return claims
+
+
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
+
+
+def verify_google_access_token(access_token: str) -> dict:
+    """
+    Check an access token from Google's sign-in popup (used by FlowMancer's own styled button).
+    Google must confirm the token is valid, unexpired and was issued to *our* client ID, so a token
+    obtained by another app can't be replayed here. Then the account's id, email and name are read
+    from Google. Returns claims in the same shape as an ID token, for accounts.google_sign_in().
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        raise GoogleTokenError("Google sign-in is not set up on this server.")
+    unreachable = "Google sign-in failed: could not reach Google. Please try again."
+    unexpected = "Google sign-in failed: unexpected response from Google."
+
+    # 1. Is the token real, unexpired, and ours? (Checked before the token is used for anything.)
+    try:
+        info_resp = httpx.get(GOOGLE_TOKENINFO_URL, params={"access_token": access_token}, timeout=10)
+    except httpx.HTTPError as e:
+        raise GoogleTokenError(unreachable) from e
+    if info_resp.status_code != 200:
+        raise GoogleTokenError("Google sign-in failed: the token is invalid or has expired.")
+    try:
+        info = info_resp.json()
+        expires_in = int(info.get("expires_in") or 0)
+    except (ValueError, TypeError) as e:
+        raise GoogleTokenError(unexpected) from e
+    if info.get("aud") != settings.GOOGLE_CLIENT_ID:
+        raise GoogleTokenError("Google sign-in failed: the token was issued to a different app.")
+    if expires_in <= 0:
+        raise GoogleTokenError("Google sign-in failed: the token has expired.")
+
+    # 2. Who is it?
+    try:
+        user_resp = httpx.get(GOOGLE_USERINFO_URL, headers={"Authorization": f"Bearer {access_token}"}, timeout=10)
+    except httpx.HTTPError as e:
+        raise GoogleTokenError(unreachable) from e
+    if user_resp.status_code != 200:
+        raise GoogleTokenError("Google sign-in failed: the token is invalid or has expired.")
+    try:
+        user = user_resp.json()
+    except ValueError as e:
+        raise GoogleTokenError(unexpected) from e
+    if not user.get("sub") or user.get("sub") != info.get("sub"):
+        raise GoogleTokenError("Google sign-in failed: the account details don't match.")
+    verified = user.get("email_verified", info.get("email_verified"))
+    return {
+        "sub": user["sub"],
+        "email": user.get("email") or info.get("email"),
+        "email_verified": verified is True or str(verified).lower() == "true",
+        "name": user.get("name"),
+    }

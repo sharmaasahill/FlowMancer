@@ -1,0 +1,1 @@
+FlowMancer: Reads your leads, emails and invoices. Asks before it acts.

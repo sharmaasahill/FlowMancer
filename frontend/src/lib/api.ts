@@ -68,7 +68,7 @@ export const authApi = {
   config: () => api.get<AuthConfig>('/api/auth/config').then((r) => r.data),
   login: (email: string, password: string) =>
     api.post<AuthSession>('/api/auth/login', { email, password }).then((r) => r.data),
-  google: (credential: string) => api.post<AuthSession>('/api/auth/google', { credential }).then((r) => r.data),
+  google: (accessToken: string) => api.post<AuthSession>('/api/auth/google', { access_token: accessToken }).then((r) => r.data),
   register: (name: string, email: string, password: string) =>
     api.post<AuthSession>('/api/auth/register', { name, email, password }).then((r) => r.data),
   me: () => api.get<User>('/api/auth/me').then((r) => r.data),

@@ -4,7 +4,7 @@ export const NAV = [
   {
     group: 'Workspace',
     items: [
-      { href: '/', label: 'Overview', icon: LayoutGrid, keywords: 'dashboard home stats' },
+      { href: '/dashboard', label: 'Overview', icon: LayoutGrid, keywords: 'dashboard home stats' },
       { href: '/studio', label: 'Studio', icon: Sparkles, keywords: 'try run lead email document process' },
       { href: '/history', label: 'History', icon: History, keywords: 'runs past results' },
     ],
@@ -26,4 +26,4 @@ export const NAV = [
   },
 ];
 
-export const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+export const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);

@@ -3,14 +3,14 @@ Accounts.
 
 POST /api/auth/register            {email, name, password} -> {token, user}
 POST /api/auth/login               {email, password}       -> {token, user}
-POST /api/auth/google              {credential}            -> {token, user}   (Sign in with Google)
+POST /api/auth/google              {access_token} or {credential} -> {token, user}   (Sign in with Google)
 GET  /api/auth/me                  the signed-in user (includes the trigger key)
 POST /api/auth/trigger-key/rotate  new key for the public form/webhook triggers
 """
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user
@@ -37,7 +37,16 @@ class LoginInput(BaseModel):
 
 
 class GoogleInput(BaseModel):
-    credential: str = Field(..., min_length=20, max_length=4096, description="ID token from Google Identity Services")
+    """Send one of the two: an ID token, or an access token from Google's sign-in popup."""
+    credential: Optional[str] = Field(None, min_length=20, max_length=4096, description="ID token from Google Identity Services")
+    access_token: Optional[str] = Field(None, min_length=20, max_length=4096,
+                                        description="Access token from Google's sign-in popup (scopes: openid email profile)")
+
+    @model_validator(mode="after")
+    def exactly_one(self):
+        if bool(self.credential) == bool(self.access_token):
+            raise ValueError("Send either credential or access_token")
+        return self
 
 
 class UserOut(BaseModel):
@@ -89,9 +98,10 @@ def login(body: LoginInput, db: Session = Depends(get_db)):
 
 @router.post("/google", response_model=Session_)
 def google(body: GoogleInput, db: Session = Depends(get_db)):
-    """Exchange a Google ID token (from the Sign in with Google button) for a FlowMancer session."""
+    """Exchange a Google ID token or access token (from Sign in with Google) for a FlowMancer session."""
     try:
-        claims = security.verify_google_token(body.credential)
+        claims = (security.verify_google_token(body.credential) if body.credential
+                  else security.verify_google_access_token(body.access_token))
         user = accounts.google_sign_in(db, claims)
     except security.GoogleTokenError as e:
         raise HTTPException(status_code=401, detail=str(e))

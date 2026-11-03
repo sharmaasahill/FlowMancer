@@ -1,31 +1,40 @@
-# FlowMancer
+<p align="center">
+  <img src="frontend/src/app/icon.svg" width="64" height="64" alt="">
+</p>
 
-**AI that reads your leads, emails and documents, and proposes what to do next. A person approves before anything goes out.**
+<h1 align="center">FlowMancer</h1>
+
+<p align="center">
+  AI that reads your sales leads, customer emails and invoices, works out what each one needs<br>
+  and drafts the next step. A person approves before anything goes out.
+</p>
+
+<p align="center">
+  <a href="https://flowmancer.vercel.app"><b>Live demo</b></a>
+  &nbsp;·&nbsp; <a href="#quick-start">Run it locally</a>
+  &nbsp;·&nbsp; <a href="#a-quick-tour">Screenshots</a>
+  &nbsp;·&nbsp; <a href="#accuracy-test-set">Accuracy</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/sharmaasahill/FlowMancer/actions/workflows/ci.yml"><img src="https://github.com/sharmaasahill/FlowMancer/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/sharmaasahill/FlowMancer/actions/workflows/accuracy.yml"><img src="https://github.com/sharmaasahill/FlowMancer/actions/workflows/accuracy.yml/badge.svg" alt="Accuracy"></a>
+  <img src="https://img.shields.io/badge/python-3.11+-3776AB" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/next.js-14-111111" alt="Next.js 14">
+  <img src="https://img.shields.io/badge/license-MIT-9B1313" alt="MIT licence">
+</p>
+
+<br>
+
+<img src="docs/screenshots/studio.png" width="100%" alt="The Studio after processing a refund email: the email on the left; on the right the knowledge lookup and analysis steps, the category, priority and tone, a one-line summary and the start of a drafted reply">
+
+<p align="center"><sub>A refund email in the Studio. FlowMancer looked up the refund policy, sorted the email and drafted a reply, all in 3.1 seconds. The reply now waits for approval.</sub></p>
+
+---
 
 FlowMancer researches a sales lead on the web, triages an email against your own policies, or checks an invoice. It returns a structured verdict (scores, categories, totals) and proposes an action: a CRM contact, a reply draft, a Finance sign-off. Nothing is sent until someone approves it.
 
-**Live demo: [flowmancer.vercel.app](https://flowmancer.vercel.app)** (frontend on Vercel, API on Render's free plan, so the first visit after a quiet spell can take up to a minute while the server wakes up).
-
-![CI](https://github.com/sharmaasahill/FlowMancer/actions/workflows/ci.yml/badge.svg)
-![Accuracy](https://github.com/sharmaasahill/FlowMancer/actions/workflows/accuracy.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.11+-green.svg)
-![Next.js](https://img.shields.io/badge/next.js-14-black.svg)
-![License](https://img.shields.io/badge/license-MIT-orange.svg)
-
-![A refund email processed live: knowledge lookup, analysis, a reply that quotes the refund policy, and a draft waiting for approval](docs/screenshots/studio-live.gif)
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Dashboard with lead, email and document counts, the AI status panel and recent activity"><br><sub><b>Dashboard.</b> Live counts, the model in use, and what's waiting for you.</sub></td>
-    <td width="50%"><img src="docs/screenshots/assistant.png" alt="Ask FlowMancer answering which hot leads came in today, with links to the runs and approvals it used"><br><sub><b>Ask FlowMancer.</b> Answers from your own data, with links to the runs it read.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/workflow-builder.png" alt="Visual workflow builder: website form, qualify lead, a score condition, then Slack and CRM approval or a webhook"><br><sub><b>Workflow builder.</b> Trigger, AI step, condition, actions.</sub></td>
-    <td width="50%"><img src="docs/screenshots/usage.png" alt="Usage page with requests, tokens, estimated cost, tokens per day, cost per feature and recent requests"><br><sub><b>Usage.</b> Tokens, response time and an estimated bill per feature and model.</sub></td>
-  </tr>
-</table>
-
----
+The [live demo](https://flowmancer.vercel.app) runs the frontend on Vercel and the API on Render's free plan, so the first visit after a quiet spell can take up to a minute while the server wakes up.
 
 ## What it does
 
@@ -41,6 +50,30 @@ You can also ask questions in plain English ("which hot leads came in this week?
 
 **Measured cost:** in the demo data on the Usage page, a quick-mode email took about 540 tokens, which is about $0.0005 at Google's paid prices. A crew-mode lead made 17 model requests and used about 14,800 tokens (about $0.011). On the free tier both cost nothing.
 
+## A quick tour
+
+All screenshots are from a running copy of FlowMancer with real Gemini results, captured at 2× resolution.
+
+**Overview.** How many leads, emails and invoices came in, which AI model is answering, and what is waiting for you.
+
+<img src="docs/screenshots/dashboard.png" width="100%" alt="The overview page: greeting, counts of leads, emails and documents, the AI status panel with the model name, and recent activity">
+
+**Approvals.** Every proposed reply, CRM contact and invoice sign-off waits here. Edit any field, then approve or reject it.
+
+<img src="docs/screenshots/approvals.png" width="100%" alt="The approvals page with a drafted reply to a refund email and a HubSpot contact for a new lead, both editable and pending">
+
+**Ask FlowMancer.** Questions in plain English, answered from your own data, with links to the runs it read.
+
+<img src="docs/screenshots/assistant.png" width="100%" alt="The Ask FlowMancer drawer answering which leads scored 80 or more today, listing three leads with links and suggesting who to contact first">
+
+**Workflow builder.** A test run of the "Hot lead alert" workflow: the lead scored 93, so the path went to Slack and a CRM approval.
+
+<img src="docs/screenshots/workflow-builder.png" width="100%" alt="The workflow builder: website form, qualify lead, a score of 80 or more check, then Slack alert and CRM approval, with the test run log on the right">
+
+**Usage.** Every AI request counted, with tokens, response time and an estimated cost per feature and model.
+
+<img src="docs/screenshots/usage.png" width="100%" alt="The usage page with requests, tokens, estimated cost and average response time, a tokens-per-day chart and cost per feature">
+
 ## Features
 
 - **Structured output.** The model fills a JSON schema, so results are real fields you can sort, chart and branch on. Rules a model can get wrong are done in code: adding up the score, checking that line items plus tax equal the total, and the approval policy.
@@ -51,13 +84,13 @@ You can also ask questions in plain English ("which hot leads came in this week?
 - **Knowledge base (RAG).** Upload pricing, policies or FAQs. They're chunked, embedded locally with ChromaDB and quoted in replies.
 - **Human approval queue.** Edit a proposed reply or contact, then approve or reject it.
 - **Ask FlowMancer assistant.** A chat drawer (top bar, or `Ctrl+J`) that answers questions using tools: search runs, open one run, list approvals, search the knowledge base, show stats, and draft a reply. A draft only goes into the approval queue. The assistant can't send anything, and it only sees the signed-in account's data.
-- **Accounts.** Email and password, or **Sign in with Google**. Each account has its own runs, workflows, approvals, knowledge base and usage. Passwords are hashed with scrypt, sessions use signed tokens (JWT), and repeated failed sign-ins are blocked for 15 minutes. Google sign-in checks Google's signature on the ID token on the server and links to an existing account with the same verified email.
+- **Accounts.** Email and password, or **Sign in with Google**. Each account has its own runs, workflows, approvals, knowledge base and usage. Passwords are hashed with scrypt, sessions use signed tokens (JWT), and repeated failed sign-ins are blocked for 15 minutes. For Google sign-in, the server asks Google to confirm that the token is valid and was issued to FlowMancer's client ID, and links the account to an existing one with the same verified email.
 - **Usage and cost page.** Every model request is recorded: feature, model, input and output tokens, response time, and whether it was rate-limited or answered by the backup model. The page shows totals, tokens per day, cost per lead/email/document, and an estimate at Google's paid prices.
 - **Triggers:** website form webhook, IMAP inbox polling, per-workflow webhooks, file upload.
 - **Actions:** Slack, HubSpot, mailbox reply drafts, and outbound webhooks for Zapier, n8n and Make.
 - **Visual workflow builder.** Drag-and-drop trigger, AI, condition and action steps, with templates. Graphs are validated on save (one trigger, no loops), and a test run lights up the path it took.
 - **Dashboard.** Live counts, activity charts, an AI status panel and full run history.
-- **Tests.** 114 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
+- **Tests.** 120 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
 - **Accuracy test set in CI.** 30 labelled cases scored against the real model, with a Markdown report. It runs weekly, on demand, and on pull requests that change prompts or the AI code.
 
 ## Tech stack
@@ -96,7 +129,7 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000** and create an account. The first account on a server also takes ownership of any data that existed before accounts were added. Then go to **Studio**, click an example such as "Refund request", and press the button to watch it work.
+Open **http://localhost:3000**. The home page explains FlowMancer in plain language; click **Try it free** to create an account (the app itself lives at `/dashboard`). The first account on a server also takes ownership of any data that existed before accounts were added. Then go to **Studio**, click an example such as "Refund request", and press the button to watch it work.
 
 > **Windows tip:** call the venv's Python directly (`venv/Scripts/python.exe -m uvicorn ...`) instead of `uvicorn`. Some terminals (MSYS2/UCRT64) and Windows Smart App Control block the bare `.exe` launchers.
 
@@ -166,7 +199,7 @@ The public triggers (`/api/triggers/form` and `/api/triggers/webhook/{id}`) are 
 4. Under **Authorized JavaScript origins**, add `http://localhost` and `http://localhost:3000`, plus your live frontend address later (for example `https://flowmancer.vercel.app`). No redirect URI is needed.
 5. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`) into `GOOGLE_CLIENT_ID` in `backend/.env` and restart the backend.
 
-The client ID is public, so the frontend reads it from the backend. No client secret is used. The backend checks every Google token's signature, expiry and audience before signing anyone in.
+The client ID is public, so the frontend reads it from the backend. No client secret is used. The backend asks Google to confirm every token is valid, unexpired and issued to this client ID before signing anyone in.
 
 **About the Gemini free tier:** it has per-minute and per-day request limits, and Google may use free-tier requests to improve its products. Don't send real customer data through it. Quick mode uses 1 request per item. A crew-mode lead used 17 in testing. The **Usage** page shows your exact numbers.
 
@@ -193,7 +226,7 @@ backend/app/
   api/           routes: auth, assistant, use_cases, runs, approvals, knowledge, triggers, workflows, executions,
                  system, usage
   core/          settings, database, llm (Gemini/Ollama + fallback chain + token metering),
-                 security (passwords, tokens, Google ID tokens)
+                 security (passwords, tokens, Google sign-in checks)
   integrations/  slack, hubspot, webhook, mail (IMAP)
   models/        User, Run, Approval, Workflow, WorkflowExecution, KnowledgeDocument, AICall
   schemas/       API schemas + the structured AI result schemas
@@ -203,8 +236,10 @@ backend/eval/    accuracy test set (cases.json), runner, saved reports
 backend/tests/   pytest suite (fake model, fake embeddings)
 docs/            README screenshots
 frontend/src/
-  app/           pages: login, overview, studio, history, workflows (+ builder), approvals, knowledge, usage,
-                 integrations, and the public about / privacy / terms pages
+  app/           public pages: landing (/), login, privacy, terms
+                 app pages: dashboard, studio, history, workflows (+ builder), approvals, knowledge, usage,
+                 integrations
+  components/landing/  landing-page demo player, example tabs, sign-in buttons
   components/    shell (sidebar, command palette), assistant drawer, Studio, run timeline/result, workflow builder, charts
   lib/           API client, auth, live-run hook, examples, workflow templates
 ```
@@ -216,7 +251,7 @@ Every endpoint except sign-in, the public triggers and health checks needs an `A
 | Endpoint | What it does |
 |----------|--------------|
 | `POST /api/auth/register` · `/api/auth/login` · `GET /api/auth/me` | Create an account, sign in (returns a token), current user |
-| `POST /api/auth/google` | Sign in with a Google ID token from the Google button |
+| `POST /api/auth/google` | Sign in with Google: send the access token from Google's sign-in popup (or an ID token) |
 | `POST /api/auth/trigger-key/rotate` | Replace your trigger key |
 | `POST /api/assistant/chat` | Ask FlowMancer: send the conversation, get a reply plus the tools it used |
 | `POST /api/use-cases/qualify-lead` · `process-email` · `process-document` `?mode=quick\|crew` | Process and wait for the result |

@@ -13,14 +13,17 @@ import { authApi, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 function safeNext(next: string | null): string {
-  return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login') ? next : '/';
+  return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login') && next !== '/'
+    ? next : '/dashboard';
 }
 
 function LoginForm() {
   const { status, signIn, signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
-  const next = safeNext(useSearchParams().get('next'));
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const params = useSearchParams();
+  const next = safeNext(params.get('next'));
+  // "Try it free" on the landing page links here with ?mode=signup
+  const [mode, setMode] = useState<'signin' | 'signup'>(params.get('mode') === 'signup' ? 'signup' : 'signin');
   const [signupsOpen, setSignupsOpen] = useState(true);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
@@ -36,14 +39,15 @@ function LoginForm() {
       setSignupsOpen(c.signups_open);
       setGoogleClientId(c.google_client_id);
       if (!c.has_users) setMode('signup');
+      else if (!c.signups_open) setMode('signin');
     }).catch(() => {}).finally(() => setConfigLoaded(true));
   }, []);
 
-  const google = async (credential: string) => {
+  const google = async (accessToken: string) => {
     setBusy(true);
     setError(null);
     try {
-      await signInWithGoogle(credential);
+      await signInWithGoogle(accessToken);
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -89,8 +93,8 @@ function LoginForm() {
 
           {googleClientId && (
             <>
-              <GoogleButton clientId={googleClientId} onCredential={google} onError={setError}
-                text={mode === 'signup' ? 'signup_with' : 'signin_with'} />
+              <GoogleButton clientId={googleClientId} onAccessToken={google} onError={setError} disabled={busy}
+                label={mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google'} />
               <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-ash" aria-hidden>
                 <span className="h-px flex-1 bg-white/[0.08]" />or with email<span className="h-px flex-1 bg-white/[0.08]" />
               </div>
@@ -135,7 +139,7 @@ function LoginForm() {
         </div>
         {!configLoaded && <div className="mt-5 text-center"><WakingHint /></div>}
         <nav className="mt-6 flex justify-center gap-5 text-xs text-fog" aria-label="About FlowMancer">
-          <Link href="/about" className="hover:text-bone">About</Link>
+          <Link href="/" className="hover:text-bone">What is FlowMancer?</Link>
           <Link href="/privacy" className="hover:text-bone">Privacy policy</Link>
           <Link href="/terms" className="hover:text-bone">Terms of service</Link>
         </nav>

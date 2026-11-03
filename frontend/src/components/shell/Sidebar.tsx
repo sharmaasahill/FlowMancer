@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 
 export function Wordmark() {
   return (
-    <Link href="/" className="group flex items-center gap-3 rounded-2xl px-2 py-1">
+    <Link href="/dashboard" className="group flex items-center gap-3 rounded-2xl px-2 py-1">
       <Orb size={30} />
       <span className="font-display text-[26px] leading-none tracking-tight text-bone">
         Flow<em className="text-blush">mancer</em>

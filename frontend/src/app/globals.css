@@ -15,6 +15,11 @@
     font-feature-settings: 'ss01', 'cv11';
   }
 
+  /* Section links on the landing page glide instead of jumping (turned off for reduced motion below) */
+  html {
+    scroll-behavior: smooth;
+  }
+
   ::selection {
     @apply bg-crimson/70 text-white;
   }
@@ -50,6 +55,16 @@
   }
   select option {
     @apply bg-noir-850 text-bone;
+  }
+
+  /* Browser autofill paints saved emails/passwords blue-grey; keep the field's own colours */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f4ecec;
+    caret-color: #f4ecec;
+    -webkit-box-shadow: 0 0 0 1000px #120e0f inset;
+    transition: background-color 9999s ease-out 0s;
   }
 }
 
@@ -98,6 +113,17 @@
   }
   .btn-success {
     @apply btn bg-bone text-noir-900 hover:bg-white active:scale-[0.98];
+  }
+
+  /* Public pages: flat buttons, no glow */
+  .btn-solid {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full bg-crimson px-5 py-2.5 text-[14px] font-semibold text-white transition-colors duration-150 hover:bg-crimson-500;
+  }
+  .btn-line {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full border border-white/[0.16] px-5 py-2.5 text-[14px] font-semibold text-bone transition-colors duration-150 hover:border-white/30 hover:bg-white/[0.04];
+  }
+  .link-arrow {
+    @apply inline-flex items-center gap-1.5 text-[14px] font-semibold text-bone underline-offset-4 hover:underline;
   }
 
   .chip {

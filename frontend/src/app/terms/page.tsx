@@ -9,7 +9,7 @@ export default function TermsPage() {
     <PublicPage>
       <Prose title="Terms of service" updated="28 October 2026">
         <p>
-          These terms apply to the FlowMancer demo at <Link href="/about">flowmancer.vercel.app</Link>, a portfolio project
+          These terms apply to the FlowMancer demo at <Link href="/">flowmancer.vercel.app</Link>, a portfolio project
           run by Sahil Kumar Sharma. By creating an account or signing in, you agree to them.
         </p>
 

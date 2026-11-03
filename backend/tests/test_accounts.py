@@ -215,3 +215,80 @@ def test_first_google_account_claims_existing_data(anon, google):
 def test_google_sign_in_off_when_not_configured(anon):
     r = google_login(anon)  # real verifier, no client ID set
     assert r.status_code == 401 and "not set up" in r.json()["detail"]
+
+
+# ---------------- Sign in with Google: access token from FlowMancer's own button ----------------
+CLIENT_ID = "123-abc.apps.googleusercontent.com"
+
+
+class FakeGoogleResponse:
+    def __init__(self, status, body):
+        self.status_code = status
+        self._body = body
+
+    def json(self):
+        return self._body
+
+
+@pytest.fixture
+def google_api(monkeypatch):
+    """Google's tokeninfo and userinfo endpoints, controlled by `google_api.info` / `google_api.user`."""
+    class Api:
+        info = {"aud": CLIENT_ID, "sub": "1098765", "expires_in": "3599", "email": "asha@gmail.com", "email_verified": "true"}
+        user = {"sub": "1098765", "email": "Asha@Gmail.com", "email_verified": True, "name": "Asha Rao"}
+        info_status = 200
+        calls = []
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        Api.calls.append(url)
+        if url == security.GOOGLE_TOKENINFO_URL:
+            assert params == {"access_token": "ya29.test-access-token"}
+            return FakeGoogleResponse(Api.info_status, Api.info)
+        assert headers == {"Authorization": "Bearer ya29.test-access-token"}
+        return FakeGoogleResponse(200, Api.user)
+
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", CLIENT_ID)
+    monkeypatch.setattr(security.httpx, "get", fake_get)
+    Api.calls = []
+    return Api
+
+
+def google_access_login(c):
+    return c.post("/api/auth/google", json={"access_token": "ya29.test-access-token"})
+
+
+def test_google_access_token_signs_in(anon, google_api):
+    r = google_access_login(anon)
+    assert r.status_code == 200, r.text
+    assert r.json()["user"]["email"] == "asha@gmail.com" and r.json()["user"]["google_linked"]
+    assert google_access_login(anon).json()["user"]["id"] == r.json()["user"]["id"]  # same account next time
+
+
+def test_google_access_token_for_another_app_is_rejected(anon, google_api):
+    google_api.info = {**google_api.info, "aud": "someone-elses-app.apps.googleusercontent.com"}
+    r = google_access_login(anon)
+    assert r.status_code == 401 and "different app" in r.json()["detail"]
+    assert google_api.calls == [security.GOOGLE_TOKENINFO_URL]  # the token is never used to read the profile
+
+
+def test_google_access_token_invalid_or_expired(anon, google_api):
+    google_api.info_status = 400
+    assert google_access_login(anon).status_code == 401
+    google_api.info_status, google_api.info = 200, {**google_api.info, "expires_in": "0"}
+    assert google_access_login(anon).status_code == 401
+
+
+def test_google_access_token_account_mismatch(anon, google_api):
+    google_api.user = {**google_api.user, "sub": "someone-else"}
+    assert google_access_login(anon).status_code == 401
+
+
+def test_google_access_token_unverified_email(anon, google_api):
+    google_api.user = {**google_api.user, "email_verified": False}
+    assert google_access_login(anon).status_code == 403
+
+
+def test_google_needs_exactly_one_token(anon, google_api):
+    assert anon.post("/api/auth/google", json={}).status_code == 422
+    both = {"access_token": "ya29.test-access-token", "credential": "x" * 40}
+    assert anon.post("/api/auth/google", json=both).status_code == 422
