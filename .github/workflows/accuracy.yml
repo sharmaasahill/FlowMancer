@@ -1,4 +1,4 @@
-# Accuracy test: runs the 30 labelled cases in backend/eval against the real Gemini model.
+# Accuracy test: runs the 100 labelled cases in backend/eval against the real Gemini model.
 # Needs a repository secret named GEMINI_API_KEY (Settings -> Secrets and variables -> Actions).
 # Without it (or on pull requests from forks, which can't read secrets) the job is skipped, not failed.
 name: Accuracy

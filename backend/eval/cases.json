@@ -1,42 +1,1624 @@
 {
   "_about": "Labelled cases for measuring FlowMancer's accuracy. Each case lists only what a correct answer must get right. Lead levels follow the scoring guide in app/agents/lead_agents.py (80+ High, 50-79 Medium, below 50 Low). Research is off during evaluation, so leads are judged only on what the person wrote.",
   "knowledge": [
-    {"name": "Refund policy", "text": "Refund policy: customers can get a full refund within 30 days of purchase. Refunds go back to the original payment method within 5 business days. After 30 days we offer account credit instead of a refund."},
-    {"name": "Pricing", "text": "Pricing: Starter is $29 per user per month. Pro is $59 per user per month. Teams of 50 or more seats get a 15% volume discount. Annual billing saves 2 months."},
-    {"name": "Support hours", "text": "Support hours: Monday to Friday, 9am to 6pm IST. Production outages are handled 24/7 by the on-call engineer."}
+    {
+      "name": "Refund policy",
+      "text": "Refund policy: customers can get a full refund within 30 days of purchase. Refunds go back to the original payment method within 5 business days. After 30 days we offer account credit instead of a refund."
+    },
+    {
+      "name": "Pricing",
+      "text": "Pricing: Starter is $29 per user per month. Pro is $59 per user per month. Teams of 50 or more seats get a 15% volume discount. Annual billing saves 2 months."
+    },
+    {
+      "name": "Support hours",
+      "text": "Support hours: Monday to Friday, 9am to 6pm IST. Production outages are handled 24/7 by the on-call engineer."
+    }
   ],
   "cases": [
-    {"id": "lead-high-1", "kind": "lead", "input": {"name": "Priya Sharma", "email": "priya@northwind-saas.com", "company": "Northwind SaaS", "message": "I'm VP of Sales at a 400-person B2B software company. We want to automate lead routing for our sales team this quarter. Budget is already approved and I'm the decision maker."}, "expect": {"qualification": ["High"]}},
-    {"id": "lead-high-2", "kind": "lead", "input": {"name": "Rohan Gupta", "email": "rohan@swiftfreight.in", "company": "SwiftFreight Logistics", "message": "Head of Operations here. We have 1,200 employees and our support team drowns in email. Finance signed off the budget last week and we want this live next month. I own the decision."}, "expect": {"qualification": ["High"]}},
-    {"id": "lead-high-3", "kind": "lead", "input": {"name": "Ananya Rao", "email": "ananya@paylane.com", "company": "PayLane", "message": "CTO of a 250-person fintech. We need invoice processing automated within 6 weeks. Budget is allocated and I sign the contract."}, "expect": {"qualification": ["High"]}},
-    {"id": "lead-high-4", "kind": "lead", "input": {"name": "Marcus Lee", "email": "marcus@cartwheel.store", "company": "Cartwheel Commerce", "message": "Director of Customer Support at a 600-person e-commerce company. Budget approved for this quarter. We need email triage for 5,000 tickets a week. Can we get a demo this week? I'm the buyer."}, "expect": {"qualification": ["High"]}},
-    {"id": "lead-med-1", "kind": "lead", "input": {"name": "Kavya Nair", "email": "kavya@ledgerly.io", "company": "Ledgerly", "message": "We're a 150-person B2B software company. Finance is putting together a budget for this. We're aiming to roll out sometime this year. I'm researching options for my manager. We need to auto-route about 200 inbound leads a week."}, "expect": {"qualification": ["Medium"]}},
-    {"id": "lead-med-2", "kind": "lead", "input": {"name": "Daniel Okafor", "email": "daniel@brightforge.com", "company": "BrightForge Manufacturing", "message": "Marketing manager at an 80-person manufacturing firm that sells to distributors. We're discussing budget for this. Maybe in the next 6 months. We need help triaging our sales inbox. My director will decide."}, "expect": {"qualification": ["Medium"]}},
-    {"id": "lead-med-3", "kind": "lead", "input": {"name": "Sofia Martins", "email": "sofia@helixhr.co", "company": "Helix HR", "message": "HR software startup, about 60 people, mostly selling to other businesses. We'd like to automate document checks this year. No budget yet but we're open to it. I'm the ops lead and would be involved in the decision."}, "expect": {"qualification": ["Medium"]}},
-    {"id": "lead-med-4", "kind": "lead", "input": {"name": "Arjun Mehta", "email": "arjun@studioparallel.in", "company": "Studio Parallel", "message": "Founder of a 35-person B2B design agency. We want to automate client email replies this year and have started setting aside budget. What does it cost?"}, "expect": {"qualification": ["Medium"]}},
-    {"id": "lead-low-1", "kind": "lead", "input": {"name": "Sam", "email": "sam1990@gmail.com", "message": "just looking around, maybe later"}, "expect": {"qualification": ["Low"]}},
-    {"id": "lead-low-2", "kind": "lead", "input": {"name": "Ishaan", "email": "ishaan.student@gmail.com", "message": "I'm a student building a college project. Can I get a free account to try it?"}, "expect": {"qualification": ["Low"]}},
-    {"id": "lead-low-3", "kind": "lead", "input": {"name": "J", "email": "j@outlook.com", "message": "send brochure"}, "expect": {"qualification": ["Low"]}},
-    {"id": "lead-low-4", "kind": "lead", "input": {"name": "Growth Team", "email": "offers@rankboost.biz", "company": "RankBoost", "message": "We offer SEO and backlink packages. 50% off this week only. Reply to claim your discount."}, "expect": {"qualification": ["Low"]}},
-
-    {"id": "email-refund-in", "kind": "email", "input": {"from_email": "rahul@customer.in", "subject": "Refund please", "body": "Hi, I bought the Pro plan 12 days ago but it doesn't fit our needs. Can I get my money back? How long will it take?"}, "expect": {"category": ["billing"], "reply": true, "reply_mentions": ["30", "5 business days"]}},
-    {"id": "email-refund-late", "kind": "email", "input": {"from_email": "meera@shop.in", "subject": "Refund", "body": "I purchased the Starter plan 45 days ago and I'd like a refund."}, "expect": {"category": ["billing"], "reply": true, "reply_mentions": ["credit"]}},
-    {"id": "email-outage", "kind": "email", "input": {"from_email": "ops@bigclient.com", "subject": "Production down!", "body": "Your dashboard has returned 500 errors for the last hour. Our whole team is blocked. This is urgent."}, "expect": {"category": ["support"], "priority": ["urgent"], "reply": true}},
-    {"id": "email-login", "kind": "email", "input": {"from_email": "neha@acme.co", "subject": "Can't log in", "body": "I reset my password twice but I still can't log in to my account. Can you help?"}, "expect": {"category": ["support"], "reply": true}},
-    {"id": "email-spam-seo", "kind": "email", "input": {"from_email": "seo@rankfast.biz", "subject": "Get 1st page Google ranking!!!", "body": "Dear Sir, we offer guaranteed backlinks and SEO. 90% discount today only. Click here to buy now."}, "expect": {"category": ["spam"], "reply": false}},
-    {"id": "email-spam-phish", "kind": "email", "input": {"from_email": "security@paypa1-verify.com", "subject": "Your account will be suspended", "body": "Unusual activity detected. Verify your account within 24 hours at http://paypa1-verify.com/login or it will be permanently suspended."}, "expect": {"category": ["spam"], "reply": false}},
-    {"id": "email-sales-seats", "kind": "email", "input": {"from_email": "priya@growthco.com", "subject": "Pricing for 60 seats", "body": "We're evaluating FlowMancer for our 60-person team. What would the Pro plan cost us per month?"}, "expect": {"category": ["sales"], "reply": true, "reply_mentions": ["15%"]}},
-    {"id": "email-partner", "kind": "email", "input": {"from_email": "alex@integrateit.io", "subject": "Reseller partnership", "body": "We're a consultancy that implements automation tools for clients. We'd like to become a reseller and build an integration with FlowMancer. Who should we talk to?"}, "expect": {"category": ["partnership"], "reply": true}},
-    {"id": "email-double-charge", "kind": "email", "input": {"from_email": "finance@clientco.com", "subject": "Charged twice this month", "body": "Our card was charged twice for the October invoice. Please refund the duplicate charge."}, "expect": {"category": ["billing"], "priority": ["high", "urgent"], "reply": true}},
-    {"id": "email-thanks", "kind": "email", "input": {"from_email": "lina@happyclient.com", "subject": "Thank you!", "body": "Just wanted to say the new workflow builder is fantastic. It saved our team hours this week. Keep it up!"}, "expect": {"sentiment": ["positive"]}},
-
-    {"id": "doc-invoice-gst", "kind": "document", "input": {"document_type": "auto", "file_content": "INVOICE #INV-2026-118\nFrom: Acme Cloud Services Pvt Ltd\nTo: FlowMancer Inc\nDate: 2026-10-01\nDue: 2026-10-31\n\n3 x Server licence @ 1,500.00 = 4,500.00\nSupport plan = 500.00\nSubtotal 5,000.00\nGST 18% 900.00\nTOTAL DUE: INR 5,900.00"}, "expect": {"document_type": ["invoice"], "validation_status": ["valid"], "approval_required": true, "total_amount": 5900, "counterparty_contains": "Acme"}},
-    {"id": "doc-bad-total", "kind": "document", "input": {"document_type": "auto", "file_content": "INVOICE 77\nVendor: Paper Co\nDate 2026-09-12\n2 x Paper box @ 40.00 = 80.00\n1 x Toner @ 60.00 = 60.00\nTOTAL: USD 400.00"}, "expect": {"document_type": ["invoice"], "validation_status": ["invalid"], "approval_required": true}},
-    {"id": "doc-receipt", "kind": "document", "input": {"document_type": "auto", "file_content": "Starbucks Store 4411\n2026-10-15 08:12\nLatte 4.50\nMuffin 3.25\nTotal 7.75 USD\nPaid VISA ****1234"}, "expect": {"document_type": ["receipt"], "validation_status": ["valid"], "approval_required": false, "total_amount": 7.75}},
-    {"id": "doc-small-invoice", "kind": "document", "input": {"document_type": "auto", "file_content": "INVOICE 2026-044\nFrom: Pixel Print Studio\nBill to: FlowMancer Inc\nDate: 2026-09-30\nDue: 2026-10-30\n\nBusiness cards (500) = 300.00\nLetterheads (200) = 150.00\nTotal: USD 450.00"}, "expect": {"document_type": ["invoice"], "validation_status": ["valid"], "approval_required": false, "total_amount": 450}},
-    {"id": "doc-contract", "kind": "document", "input": {"document_type": "auto", "file_content": "SERVICE AGREEMENT\nThis agreement is made on 1 November 2026 between FlowMancer Inc (Client) and DataBridge Consulting LLP (Provider).\nScope: data migration services.\nTerm: 12 months from the effective date.\nFees: USD 2,000 per month, invoiced monthly, payable within 30 days.\nEither party may terminate with 60 days written notice.\nSigned for and on behalf of both parties."}, "expect": {"document_type": ["contract"], "approval_required": true}},
-    {"id": "doc-purchase-order", "kind": "document", "input": {"document_type": "auto", "file_content": "PURCHASE ORDER PO-5521\nIssued by: FlowMancer Inc\nSupplier: Orbit Office Supplies\nDate: 2026-10-20\n\n4 x Standing desk @ 450.00 = 1,800.00\n6 x Monitor arm @ 100.00 = 600.00\nTotal: USD 2,400.00"}, "expect": {"document_type": ["purchase_order"], "validation_status": ["valid"], "approval_required": true, "total_amount": 2400}},
-    {"id": "doc-no-total", "kind": "document", "input": {"document_type": "auto", "file_content": "INVOICE 55\nFrom: Bright Ltd\nDate: 2026-10-02\nConsulting, October\nTravel expenses\nPlease pay promptly."}, "expect": {"document_type": ["invoice"], "validation_status": ["needs_review", "invalid"], "approval_required": true}},
-    {"id": "doc-eur-tax", "kind": "document", "input": {"document_type": "auto", "file_content": "RECHNUNG / INVOICE 9001\nFrom: Kraftwerk Software GmbH\nTo: FlowMancer Inc\nDate: 2026-10-05\nDue: 2026-11-04\n\nAnnual licence = 1,000.00\nVAT 18% = 180.00\nTotal: EUR 1,180.00"}, "expect": {"document_type": ["invoice"], "validation_status": ["valid"], "approval_required": true, "total_amount": 1180}}
+    {
+      "id": "lead-high-1",
+      "kind": "lead",
+      "input": {
+        "name": "Priya Sharma",
+        "email": "priya@northwind-saas.com",
+        "company": "Northwind SaaS",
+        "message": "I'm VP of Sales at a 400-person B2B software company. We want to automate lead routing for our sales team this quarter. Budget is already approved and I'm the decision maker."
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-2",
+      "kind": "lead",
+      "input": {
+        "name": "Rohan Gupta",
+        "email": "rohan@swiftfreight.in",
+        "company": "SwiftFreight Logistics",
+        "message": "Head of Operations here. We have 1,200 employees and our support team drowns in email. Finance signed off the budget last week and we want this live next month. I own the decision."
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-3",
+      "kind": "lead",
+      "input": {
+        "name": "Ananya Rao",
+        "email": "ananya@paylane.com",
+        "company": "PayLane",
+        "message": "CTO of a 250-person fintech. We need invoice processing automated within 6 weeks. Budget is allocated and I sign the contract."
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-4",
+      "kind": "lead",
+      "input": {
+        "name": "Marcus Lee",
+        "email": "marcus@cartwheel.store",
+        "company": "Cartwheel Commerce",
+        "message": "Director of Customer Support at a 600-person e-commerce company. Budget approved for this quarter. We need email triage for 5,000 tickets a week. Can we get a demo this week? I'm the buyer."
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-1",
+      "kind": "lead",
+      "input": {
+        "name": "Kavya Nair",
+        "email": "kavya@ledgerly.io",
+        "company": "Ledgerly",
+        "message": "We're a 150-person B2B software company. Finance is putting together a budget for this. We're aiming to roll out sometime this year. I'm researching options for my manager. We need to auto-route about 200 inbound leads a week."
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-2",
+      "kind": "lead",
+      "input": {
+        "name": "Daniel Okafor",
+        "email": "daniel@brightforge.com",
+        "company": "BrightForge Manufacturing",
+        "message": "Marketing manager at an 80-person manufacturing firm that sells to distributors. We're discussing budget for this. Maybe in the next 6 months. We need help triaging our sales inbox. My director will decide."
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-3",
+      "kind": "lead",
+      "input": {
+        "name": "Sofia Martins",
+        "email": "sofia@helixhr.co",
+        "company": "Helix HR",
+        "message": "HR software startup, about 60 people, mostly selling to other businesses. We'd like to automate document checks this year. No budget yet but we're open to it. I'm the ops lead and would be involved in the decision."
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-4",
+      "kind": "lead",
+      "input": {
+        "name": "Arjun Mehta",
+        "email": "arjun@studioparallel.in",
+        "company": "Studio Parallel",
+        "message": "Founder of a 35-person B2B design agency. We want to automate client email replies this year and have started setting aside budget. What does it cost?"
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-1",
+      "kind": "lead",
+      "input": {
+        "name": "Sam",
+        "email": "sam1990@gmail.com",
+        "message": "just looking around, maybe later"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-2",
+      "kind": "lead",
+      "input": {
+        "name": "Ishaan",
+        "email": "ishaan.student@gmail.com",
+        "message": "I'm a student building a college project. Can I get a free account to try it?"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-3",
+      "kind": "lead",
+      "input": {
+        "name": "J",
+        "email": "j@outlook.com",
+        "message": "send brochure"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-4",
+      "kind": "lead",
+      "input": {
+        "name": "Growth Team",
+        "email": "offers@rankboost.biz",
+        "company": "RankBoost",
+        "message": "We offer SEO and backlink packages. 50% off this week only. Reply to claim your discount."
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "email-refund-in",
+      "kind": "email",
+      "input": {
+        "from_email": "rahul@customer.in",
+        "subject": "Refund please",
+        "body": "Hi, I bought the Pro plan 12 days ago but it doesn't fit our needs. Can I get my money back? How long will it take?"
+      },
+      "expect": {
+        "category": [
+          "billing"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "30",
+          "5 business days"
+        ]
+      }
+    },
+    {
+      "id": "email-refund-late",
+      "kind": "email",
+      "input": {
+        "from_email": "meera@shop.in",
+        "subject": "Refund",
+        "body": "I purchased the Starter plan 45 days ago and I'd like a refund."
+      },
+      "expect": {
+        "category": [
+          "billing"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "credit"
+        ]
+      }
+    },
+    {
+      "id": "email-outage",
+      "kind": "email",
+      "input": {
+        "from_email": "ops@bigclient.com",
+        "subject": "Production down!",
+        "body": "Your dashboard has returned 500 errors for the last hour. Our whole team is blocked. This is urgent."
+      },
+      "expect": {
+        "category": [
+          "support"
+        ],
+        "priority": [
+          "urgent"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-login",
+      "kind": "email",
+      "input": {
+        "from_email": "neha@acme.co",
+        "subject": "Can't log in",
+        "body": "I reset my password twice but I still can't log in to my account. Can you help?"
+      },
+      "expect": {
+        "category": [
+          "support"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-spam-seo",
+      "kind": "email",
+      "input": {
+        "from_email": "seo@rankfast.biz",
+        "subject": "Get 1st page Google ranking!!!",
+        "body": "Dear Sir, we offer guaranteed backlinks and SEO. 90% discount today only. Click here to buy now."
+      },
+      "expect": {
+        "category": [
+          "spam"
+        ],
+        "reply": false
+      }
+    },
+    {
+      "id": "email-spam-phish",
+      "kind": "email",
+      "input": {
+        "from_email": "security@paypa1-verify.com",
+        "subject": "Your account will be suspended",
+        "body": "Unusual activity detected. Verify your account within 24 hours at http://paypa1-verify.com/login or it will be permanently suspended."
+      },
+      "expect": {
+        "category": [
+          "spam"
+        ],
+        "reply": false
+      }
+    },
+    {
+      "id": "email-sales-seats",
+      "kind": "email",
+      "input": {
+        "from_email": "priya@growthco.com",
+        "subject": "Pricing for 60 seats",
+        "body": "We're evaluating FlowMancer for our 60-person team. What would the Pro plan cost us per month?"
+      },
+      "expect": {
+        "category": [
+          "sales"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "15%"
+        ]
+      }
+    },
+    {
+      "id": "email-partner",
+      "kind": "email",
+      "input": {
+        "from_email": "alex@integrateit.io",
+        "subject": "Reseller partnership",
+        "body": "We're a consultancy that implements automation tools for clients. We'd like to become a reseller and build an integration with FlowMancer. Who should we talk to?"
+      },
+      "expect": {
+        "category": [
+          "partnership"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-double-charge",
+      "kind": "email",
+      "input": {
+        "from_email": "finance@clientco.com",
+        "subject": "Charged twice this month",
+        "body": "Our card was charged twice for the October invoice. Please refund the duplicate charge."
+      },
+      "expect": {
+        "category": [
+          "billing"
+        ],
+        "priority": [
+          "high",
+          "urgent"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-thanks",
+      "kind": "email",
+      "input": {
+        "from_email": "lina@happyclient.com",
+        "subject": "Thank you!",
+        "body": "Just wanted to say the new workflow builder is fantastic. It saved our team hours this week. Keep it up!"
+      },
+      "expect": {
+        "sentiment": [
+          "positive"
+        ]
+      }
+    },
+    {
+      "id": "doc-invoice-gst",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE #INV-2026-118\nFrom: Acme Cloud Services Pvt Ltd\nTo: FlowMancer Inc\nDate: 2026-10-01\nDue: 2026-10-31\n\n3 x Server licence @ 1,500.00 = 4,500.00\nSupport plan = 500.00\nSubtotal 5,000.00\nGST 18% 900.00\nTOTAL DUE: INR 5,900.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": true,
+        "total_amount": 5900,
+        "counterparty_contains": "Acme"
+      }
+    },
+    {
+      "id": "doc-bad-total",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE 77\nVendor: Paper Co\nDate 2026-09-12\n2 x Paper box @ 40.00 = 80.00\n1 x Toner @ 60.00 = 60.00\nTOTAL: USD 400.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "invalid"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-receipt",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "Starbucks Store 4411\n2026-10-15 08:12\nLatte 4.50\nMuffin 3.25\nTotal 7.75 USD\nPaid VISA ****1234"
+      },
+      "expect": {
+        "document_type": [
+          "receipt"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 7.75
+      }
+    },
+    {
+      "id": "doc-small-invoice",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE 2026-044\nFrom: Pixel Print Studio\nBill to: FlowMancer Inc\nDate: 2026-09-30\nDue: 2026-10-30\n\nBusiness cards (500) = 300.00\nLetterheads (200) = 150.00\nTotal: USD 450.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 450
+      }
+    },
+    {
+      "id": "doc-contract",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "SERVICE AGREEMENT\nThis agreement is made on 1 November 2026 between FlowMancer Inc (Client) and DataBridge Consulting LLP (Provider).\nScope: data migration services.\nTerm: 12 months from the effective date.\nFees: USD 2,000 per month, invoiced monthly, payable within 30 days.\nEither party may terminate with 60 days written notice.\nSigned for and on behalf of both parties."
+      },
+      "expect": {
+        "document_type": [
+          "contract"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-purchase-order",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "PURCHASE ORDER PO-5521\nIssued by: FlowMancer Inc\nSupplier: Orbit Office Supplies\nDate: 2026-10-20\n\n4 x Standing desk @ 450.00 = 1,800.00\n6 x Monitor arm @ 100.00 = 600.00\nTotal: USD 2,400.00"
+      },
+      "expect": {
+        "document_type": [
+          "purchase_order"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": true,
+        "total_amount": 2400
+      }
+    },
+    {
+      "id": "doc-no-total",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE 55\nFrom: Bright Ltd\nDate: 2026-10-02\nConsulting, October\nTravel expenses\nPlease pay promptly."
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "needs_review",
+          "invalid"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-eur-tax",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "RECHNUNG / INVOICE 9001\nFrom: Kraftwerk Software GmbH\nTo: FlowMancer Inc\nDate: 2026-10-05\nDue: 2026-11-04\n\nAnnual licence = 1,000.00\nVAT 18% = 180.00\nTotal: EUR 1,180.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": true,
+        "total_amount": 1180
+      }
+    },
+    {
+      "id": "lead-high-5",
+      "kind": "lead",
+      "input": {
+        "name": "Neha Kapoor",
+        "email": "neha@quantumhealth.com",
+        "message": "COO of a 900-person healthcare software company. We need to automate billing email triage before the end of this quarter. Budget is signed off and I make the final call.",
+        "company": "Quantum Health Systems"
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-6",
+      "kind": "lead",
+      "input": {
+        "name": "Tom Becker",
+        "email": "tom@ironclad-logistics.de",
+        "message": "Head of Sales Operations at a 350-person logistics company selling to retailers across Europe. We have an approved budget for automation this quarter and I own this purchase. Can we start a pilot in two weeks?",
+        "company": "Ironclad Logistics"
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-7",
+      "kind": "lead",
+      "input": {
+        "name": "Aisha Khan",
+        "email": "aisha@finvista.ae",
+        "message": "VP Finance at a 500-employee B2B payments company. We process 3,000 vendor invoices a month and need automated checks live next month. Budget approved, and I'm the buyer.",
+        "company": "FinVista"
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-8",
+      "kind": "lead",
+      "input": {
+        "name": "Carlos Ruiz",
+        "email": "carlos@telcomax.mx",
+        "message": "Director of Customer Experience at a 2,000-person telecom serving business clients. Our support inbox gets 10,000 emails a week. Budget is approved for this quarter and I lead the decision. Please send a contract.",
+        "company": "TelcoMax"
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-9",
+      "kind": "lead",
+      "input": {
+        "name": "Mei Lin",
+        "email": "mei@cloudharbor.io",
+        "message": "Founder and CEO of a 220-person B2B cloud company. We want lead scoring automated in the next 30 days. Budget is approved and I sign off on all tooling.",
+        "company": "CloudHarbor"
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-10",
+      "kind": "lead",
+      "input": {
+        "name": "Vikram Singh",
+        "email": "vikram@orionsteel.in",
+        "message": "Chief Revenue Officer at a 1,500-person industrial supplier selling to manufacturers. Budget is approved for this quarter and we need routing for 800 inbound leads a month by next month. I'm the decision maker.",
+        "company": "Orion Steel"
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-11",
+      "kind": "lead",
+      "input": {
+        "name": "Emma Wilson",
+        "email": "emma@brightlane.co.uk",
+        "message": "Head of Operations at a 700-person insurer that sells to businesses. Finance approved the spend yesterday. We need claim-document checks automated within 4 weeks and I'll sign the order.",
+        "company": "Brightlane Insurance"
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-high-12",
+      "kind": "lead",
+      "input": {
+        "name": "David Cohen",
+        "email": "david@nexaretail.com",
+        "message": "SVP Sales at a 450-person B2B wholesale company. Budget is allocated for this quarter and we want a demo this week to start rollout next month. Final approval is mine.",
+        "company": "Nexa Retail Group"
+      },
+      "expect": {
+        "qualification": [
+          "High"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-5",
+      "kind": "lead",
+      "input": {
+        "name": "Rahul Verma",
+        "email": "rahul@codecraft.in",
+        "message": "We're a 120-person B2B software consultancy. We want to automate inbound lead routing sometime this year and budget is being discussed. I'm gathering options to recommend to our CEO.",
+        "company": "CodeCraft"
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-6",
+      "kind": "lead",
+      "input": {
+        "name": "Laura Chen",
+        "email": "laura@greenleafsupply.com",
+        "message": "Operations analyst at a 150-person distributor that sells to restaurants. We need to automate supplier email triage this year. Budget is under discussion and I'll recommend a tool to my director.",
+        "company": "Greenleaf Supply"
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-7",
+      "kind": "lead",
+      "input": {
+        "name": "Omar Haddad",
+        "email": "omar@atlasevents.com",
+        "message": "Sales manager at a 100-person events company working with corporate clients. We want to automate lead handling later this year. We're discussing budget and my VP makes the final decision.",
+        "company": "Atlas Events"
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-8",
+      "kind": "lead",
+      "input": {
+        "name": "Priyanka Das",
+        "email": "priyanka@medisoft.in",
+        "message": "Product manager at a 200-person B2B health-tech company. We need invoice automation within the year and budget talks have started. I'll present options to our CFO.",
+        "company": "MediSoft"
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-9",
+      "kind": "lead",
+      "input": {
+        "name": "Ben Taylor",
+        "email": "ben@northpeak.io",
+        "message": "Team lead at a 90-person B2B analytics firm. We want to cut time spent on support email this year. Budget is being discussed and I'm shortlisting tools for my manager.",
+        "company": "NorthPeak Analytics"
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-10",
+      "kind": "lead",
+      "input": {
+        "name": "Fatima Zahra",
+        "email": "fatima@sahelagri.com",
+        "message": "Office manager at a 130-person exporter selling to wholesalers. We want faster supplier-invoice checks this year. Our director is reviewing the budget and I'm collecting proposals.",
+        "company": "Sahel Agri Exports"
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-med-11",
+      "kind": "lead",
+      "input": {
+        "name": "Lucas Moreau",
+        "email": "lucas@vertexlegal.fr",
+        "message": "IT coordinator at a 160-person law firm with corporate clients. We plan to automate contract document checks in the next few months. Budget is being discussed and the partners decide.",
+        "company": "Vertex Legal"
+      },
+      "expect": {
+        "qualification": [
+          "Medium"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-5",
+      "kind": "lead",
+      "input": {
+        "name": "Hi",
+        "email": "anon123@yahoo.com",
+        "message": "what is this"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-6",
+      "kind": "lead",
+      "input": {
+        "name": "Kiran",
+        "email": "kiran.job@gmail.com",
+        "message": "Are you hiring? I'd like to apply for a developer job."
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-7",
+      "kind": "lead",
+      "input": {
+        "name": "Rita",
+        "email": "bakes@hotmail.com",
+        "message": "I run a personal cooking blog, it's just me. Is there a free plan forever?",
+        "company": "Rita's Recipes"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-8",
+      "kind": "lead",
+      "input": {
+        "name": "Test",
+        "email": "test@test.com",
+        "message": "test test"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-9",
+      "kind": "lead",
+      "input": {
+        "name": "Moon Team",
+        "email": "invest@moonpump.biz",
+        "message": "Invest in our new coin, 1000% returns guaranteed. DM us now.",
+        "company": "MoonPump"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-10",
+      "kind": "lead",
+      "input": {
+        "name": "Meera",
+        "email": "meera.writer@gmail.com",
+        "message": "Freelance writer here. Can I write a guest post for your blog?"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-11",
+      "kind": "lead",
+      "input": {
+        "name": "Raj",
+        "email": "raj.p@gmail.com",
+        "message": "Just curious how AI works, no plans to buy anything."
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "lead-low-12",
+      "kind": "lead",
+      "input": {
+        "name": "Hack Team",
+        "email": "team@unihackathon.edu",
+        "message": "We're students at a hackathon this weekend. Can we get free credits?",
+        "company": "University Hackathon"
+      },
+      "expect": {
+        "qualification": [
+          "Low"
+        ]
+      }
+    },
+    {
+      "id": "email-refund-day3",
+      "kind": "email",
+      "input": {
+        "from_email": "ankit@buyer.in",
+        "subject": "Refund for wrong plan",
+        "body": "I signed up for the Starter plan 3 days ago by mistake. Please refund me."
+      },
+      "expect": {
+        "category": [
+          "billing"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "5 business"
+        ]
+      }
+    },
+    {
+      "id": "email-refund-60",
+      "kind": "email",
+      "input": {
+        "from_email": "olivia@shopfront.co",
+        "subject": "Refund request",
+        "body": "I bought the Pro plan two months ago and I'd like my money back."
+      },
+      "expect": {
+        "category": [
+          "billing"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "credit"
+        ]
+      }
+    },
+    {
+      "id": "email-price-starter",
+      "kind": "email",
+      "input": {
+        "from_email": "sara@smallteam.io",
+        "subject": "Starter plan price",
+        "body": "How much does the Starter plan cost per user?"
+      },
+      "expect": {
+        "category": [
+          "sales"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "29"
+        ]
+      }
+    },
+    {
+      "id": "email-price-pro",
+      "kind": "email",
+      "input": {
+        "from_email": "jon@agencyhub.com",
+        "subject": "Pro plan",
+        "body": "What is the monthly price of the Pro plan per user?"
+      },
+      "expect": {
+        "category": [
+          "sales"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "59"
+        ]
+      }
+    },
+    {
+      "id": "email-price-volume",
+      "kind": "email",
+      "input": {
+        "from_email": "hr@bigteam.com",
+        "subject": "Volume discount?",
+        "body": "We have 120 people. Is there a volume discount on the Pro plan?"
+      },
+      "expect": {
+        "category": [
+          "sales"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "15%"
+        ]
+      }
+    },
+    {
+      "id": "email-annual-billing",
+      "kind": "email",
+      "input": {
+        "from_email": "cfo@mid.co",
+        "subject": "Annual billing",
+        "body": "Do you offer any savings if we pay yearly instead of monthly?"
+      },
+      "expect": {
+        "category": [
+          "sales",
+          "billing"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-support-hours",
+      "kind": "email",
+      "input": {
+        "from_email": "li@sg-client.sg",
+        "subject": "Support hours",
+        "body": "What are your support hours? We want to know when we can reach you."
+      },
+      "expect": {
+        "category": [
+          "support",
+          "other"
+        ],
+        "reply": true,
+        "reply_mentions": [
+          "IST"
+        ]
+      }
+    },
+    {
+      "id": "email-outage-api",
+      "kind": "email",
+      "input": {
+        "from_email": "cto@shopnow.com",
+        "subject": "API down - checkout broken",
+        "body": "Your API has been timing out for 20 minutes. Our checkout is completely broken and we're losing sales. Fix this now."
+      },
+      "expect": {
+        "category": [
+          "support"
+        ],
+        "priority": [
+          "urgent"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-outage-weekend",
+      "kind": "email",
+      "input": {
+        "from_email": "ops@paymate.io",
+        "subject": "Platform down on Saturday",
+        "body": "It's Saturday night and the whole platform is down. None of our customers can log in."
+      },
+      "expect": {
+        "category": [
+          "support"
+        ],
+        "priority": [
+          "urgent"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-bug-export",
+      "kind": "email",
+      "input": {
+        "from_email": "nina@datacorp.com",
+        "subject": "Export button broken",
+        "body": "The Export to CSV button does nothing when I click it in Chrome. Can you look into it?"
+      },
+      "expect": {
+        "category": [
+          "support"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-password-reset",
+      "kind": "email",
+      "input": {
+        "from_email": "ali@clientx.com",
+        "subject": "No reset email",
+        "body": "I asked for a password reset but the email never arrived."
+      },
+      "expect": {
+        "category": [
+          "support"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-angry-dataloss",
+      "kind": "email",
+      "input": {
+        "from_email": "manager@retailco.com",
+        "subject": "Third time losing our data",
+        "body": "This is the third time your product has lost our data. Absolutely unacceptable. We are considering cancelling."
+      },
+      "expect": {
+        "category": [
+          "support"
+        ],
+        "sentiment": [
+          "negative"
+        ],
+        "priority": [
+          "urgent",
+          "high"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-cancel",
+      "kind": "email",
+      "input": {
+        "from_email": "emma@tinyshop.com",
+        "subject": "Cancel subscription",
+        "body": "Please cancel my subscription at the end of this month."
+      },
+      "expect": {
+        "category": [
+          "billing",
+          "support"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-invoice-copy",
+      "kind": "email",
+      "input": {
+        "from_email": "accounts@clientco.com",
+        "subject": "Invoice copy",
+        "body": "Could you send a copy of last month's invoice for our accounts team?"
+      },
+      "expect": {
+        "category": [
+          "billing"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-card-expired",
+      "kind": "email",
+      "input": {
+        "from_email": "finance@startup.io",
+        "subject": "Payment failed",
+        "body": "Our payment failed because the card expired. How do we update the card?"
+      },
+      "expect": {
+        "category": [
+          "billing"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-spam-lottery",
+      "kind": "email",
+      "input": {
+        "from_email": "winner@intl-lotto.biz",
+        "subject": "You have WON $1,000,000",
+        "body": "Congratulations! You have won $1,000,000. Send your bank details and a processing fee to claim."
+      },
+      "expect": {
+        "category": [
+          "spam"
+        ],
+        "reply": false
+      }
+    },
+    {
+      "id": "email-spam-crypto",
+      "kind": "email",
+      "input": {
+        "from_email": "promo@coinrocket.biz",
+        "subject": "Turn $100 into $10,000",
+        "body": "Our new crypto token is going to the moon. Guaranteed 100x returns. Buy now before it's too late!"
+      },
+      "expect": {
+        "category": [
+          "spam"
+        ],
+        "reply": false
+      }
+    },
+    {
+      "id": "email-spam-pharma",
+      "kind": "email",
+      "input": {
+        "from_email": "deals@cheap-meds-online.ru",
+        "subject": "Cheap meds, no prescription",
+        "body": "Buy cheap medicines online without prescription. 80% off. Fast delivery."
+      },
+      "expect": {
+        "category": [
+          "spam"
+        ],
+        "reply": false
+      }
+    },
+    {
+      "id": "email-phish-invoice",
+      "kind": "email",
+      "input": {
+        "from_email": "billing@micr0soft-support.net",
+        "subject": "Overdue invoice - legal action",
+        "body": "Your invoice is overdue. Download it from http://bit.ly/x9k2 within 24 hours to avoid legal action."
+      },
+      "expect": {
+        "category": [
+          "spam"
+        ],
+        "reply": false
+      }
+    },
+    {
+      "id": "email-partner-reseller",
+      "kind": "email",
+      "input": {
+        "from_email": "omar@dubaidigital.ae",
+        "subject": "Reselling FlowMancer",
+        "body": "We are a digital agency in Dubai and want to resell FlowMancer to our clients. What does your partner program look like?"
+      },
+      "expect": {
+        "category": [
+          "partnership"
+        ]
+      }
+    },
+    {
+      "id": "email-partner-integration",
+      "kind": "email",
+      "input": {
+        "from_email": "bizdev@crmly.com",
+        "subject": "Integration partnership",
+        "body": "We build a CRM used by 5,000 companies and would like to set up an official integration partnership with FlowMancer."
+      },
+      "expect": {
+        "category": [
+          "partnership"
+        ]
+      }
+    },
+    {
+      "id": "email-demo-request",
+      "kind": "email",
+      "input": {
+        "from_email": "head.sales@bluewave.com",
+        "subject": "Demo request",
+        "body": "We're a 200-person company evaluating tools like yours. Could we book a demo next week?"
+      },
+      "expect": {
+        "category": [
+          "sales"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-data-residency",
+      "kind": "email",
+      "input": {
+        "from_email": "legal@eurobank.eu",
+        "subject": "Where is our data stored?",
+        "body": "Before we buy, our legal team needs to know whether you store customer data in the EU."
+      },
+      "expect": {
+        "category": [
+          "sales",
+          "support"
+        ],
+        "reply": true
+      }
+    },
+    {
+      "id": "email-praise-support",
+      "kind": "email",
+      "input": {
+        "from_email": "tara@happyco.com",
+        "subject": "Great support",
+        "body": "Your support team fixed our issue in 10 minutes. Brilliant service, thank you!"
+      },
+      "expect": {
+        "sentiment": [
+          "positive"
+        ]
+      }
+    },
+    {
+      "id": "email-unsubscribe",
+      "kind": "email",
+      "input": {
+        "from_email": "pat@reader.com",
+        "subject": "Unsubscribe",
+        "body": "Please remove me from your marketing emails."
+      },
+      "expect": {
+        "category": [
+          "other",
+          "support"
+        ]
+      }
+    },
+    {
+      "id": "doc-inv-small-valid",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE NH-2026-310\nFrom: Nimbus Hosting Ltd\nTo: FlowMancer Inc\nDate: 2026-10-04\nDue: 2026-11-03\n\nVPS hosting, October = 120.00\nBackup storage = 80.00\nTotal: USD 200.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 200.0,
+        "counterparty_contains": "Nimbus"
+      }
+    },
+    {
+      "id": "doc-inv-large-valid",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE AC-772\nFrom: Apex Consulting LLP\nTo: FlowMancer Inc\nDate: 2026-10-08\nDue: 2026-11-07\n\nStrategy workshop = 2,000.00\nProcess audit = 1,500.00\nTravel = 500.00\nTotal: USD 4,000.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": true,
+        "total_amount": 4000.0,
+        "counterparty_contains": "Apex"
+      }
+    },
+    {
+      "id": "doc-inv-vat-valid",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE 1188\nFrom: Lumen Design Studio\nBill to: FlowMancer Inc\nDate: 2026-10-10\n\nLogo refresh = 600.00\nVAT 20% = 120.00\nTotal: GBP 720.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 720.0
+      }
+    },
+    {
+      "id": "doc-inv-bad-sum",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE QP-19\nVendor: QuickParts\nDate: 2026-10-11\n\n3 x Cable @ 25.00 = 75.00\n2 x Adapter @ 10.00 = 20.00\nTotal: USD 150.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "invalid"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-inv-bad-tax",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE OT-5521\nFrom: Orbit Telecom\nTo: FlowMancer Inc\nDate: 2026-10-12\n\nBusiness broadband, October = 500.00\nGST 18% = 90.00\nTotal: INR 650.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "invalid"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-inv-no-vendor",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE 301\nDate: 2026-10-03\n\nWebsite design work = 800.00\nTotal: USD 800.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "needs_review",
+          "invalid"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-inv-gst-small",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "TAX INVOICE DP/26/88\nFrom: Desi Prints\nTo: FlowMancer Inc\nDate: 2026-10-14\n\nFlyers (1000) = 400.00\nGST 18% = 72.00\nTotal: INR 472.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 472.0
+      }
+    },
+    {
+      "id": "doc-inv-gst-large",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "TAX INVOICE TS-2026-904\nFrom: TechSphere Solutions Pvt Ltd\nTo: FlowMancer Inc\nDate: 2026-10-15\nDue: 2026-11-14\n\nAnnual maintenance contract = 10,000.00\nGST 18% = 1,800.00\nTotal: INR 11,800.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": true,
+        "total_amount": 11800.0
+      }
+    },
+    {
+      "id": "doc-inv-subscription",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE TB-0042\nFrom: Toolbox SaaS Inc\nTo: FlowMancer Inc\nDate: 2026-10-01\n\nPro plan subscription, October = 59.00\nTotal: USD 59.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 59.0
+      }
+    },
+    {
+      "id": "doc-inv-exact-1000",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INVOICE SA-310\nFrom: Stellar Audio\nTo: FlowMancer Inc\nDate: 2026-10-16\n\n2 x Conference speaker @ 500.00 = 1,000.00\nTotal: USD 1,000.00"
+      },
+      "expect": {
+        "document_type": [
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": true,
+        "total_amount": 1000.0
+      }
+    },
+    {
+      "id": "doc-receipt-taxi",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "Uber\nTrip receipt\n2026-10-17 21:40\nTrip fare 400.00\nBooking fee 50.00\nTotal INR 450.00\nPaid by card"
+      },
+      "expect": {
+        "document_type": [
+          "receipt"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 450.0
+      }
+    },
+    {
+      "id": "doc-receipt-grocery",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "FreshMart Supermarket\n2026-10-18 18:05\nMilk 2.50\nBread 3.00\nEggs 4.25\nTotal 9.75 EUR\nPaid CASH"
+      },
+      "expect": {
+        "document_type": [
+          "receipt"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 9.75
+      }
+    },
+    {
+      "id": "doc-receipt-hotel",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "Grand Palace Hotel\nGuest receipt, checkout 2026-10-19\nRoom, 2 nights = 6,000.00\nTax = 720.00\nTotal paid: INR 6,720.00"
+      },
+      "expect": {
+        "document_type": [
+          "receipt",
+          "invoice"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": true,
+        "total_amount": 6720.0
+      }
+    },
+    {
+      "id": "doc-receipt-bad",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "Corner Cafe\n2026-10-20 13:10\nCoffee 3.00\nSandwich 5.00\nTotal 12.00 USD\nPaid VISA"
+      },
+      "expect": {
+        "document_type": [
+          "receipt"
+        ],
+        "validation_status": [
+          "invalid"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-contract-nda",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "MUTUAL NON-DISCLOSURE AGREEMENT\nThis agreement is made on 3 November 2026 between FlowMancer Inc and Helios Robotics Ltd.\nBoth parties agree to keep confidential information secret for 3 years.\nGoverning law: England and Wales.\nSigned by authorised representatives of both parties."
+      },
+      "expect": {
+        "document_type": [
+          "contract"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-contract-lease",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "OFFICE LEASE AGREEMENT\nLandlord: Skyline Properties LLP\nTenant: FlowMancer Inc\nPremises: Unit 4B, Tech Park, Bengaluru\nTerm: 24 months from 1 December 2026\nRent: INR 1,50,000 per month, payable in advance."
+      },
+      "expect": {
+        "document_type": [
+          "contract"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-contract-employment",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "EMPLOYMENT AGREEMENT\nEmployer: FlowMancer Inc\nEmployee: Ravi Kumar\nPosition: Senior Engineer\nStart date: 1 December 2026\nSalary: INR 24,00,000 per year\nNotice period: 60 days."
+      },
+      "expect": {
+        "document_type": [
+          "contract"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-po-small",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "PURCHASE ORDER PO-6010\nIssued by: FlowMancer Inc\nSupplier: Stationery World\nDate: 2026-10-21\n\n10 x Notebook @ 5.00 = 50.00\n5 x Pen pack @ 4.00 = 20.00\nTotal: USD 70.00"
+      },
+      "expect": {
+        "document_type": [
+          "purchase_order"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": false,
+        "total_amount": 70.0
+      }
+    },
+    {
+      "id": "doc-po-large",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "PURCHASE ORDER PO-6011\nIssued by: FlowMancer Inc\nSupplier: Laptop Depot\nDate: 2026-10-22\n\n2 x Laptop @ 1,200.00 = 2,400.00\nTotal: USD 2,400.00"
+      },
+      "expect": {
+        "document_type": [
+          "purchase_order"
+        ],
+        "validation_status": [
+          "valid"
+        ],
+        "approval_required": true,
+        "total_amount": 2400.0
+      }
+    },
+    {
+      "id": "doc-po-bad",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "PURCHASE ORDER PO-6012\nIssued by: FlowMancer Inc\nSupplier: Comfort Seating\nDate: 2026-10-23\n\n3 x Office chair @ 150.00 = 450.00\nTotal: USD 600.00"
+      },
+      "expect": {
+        "document_type": [
+          "purchase_order"
+        ],
+        "validation_status": [
+          "invalid"
+        ],
+        "approval_required": true
+      }
+    },
+    {
+      "id": "doc-memo",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "INTERNAL MEMO\nTo: All staff\nFrom: Office Admin\nDate: 2026-10-24\nThe office will be closed on Friday for electrical maintenance. Please work from home."
+      },
+      "expect": {
+        "document_type": [
+          "other"
+        ],
+        "approval_required": false
+      }
+    },
+    {
+      "id": "doc-newsletter",
+      "kind": "document",
+      "input": {
+        "document_type": "auto",
+        "file_content": "FlowMancer Quarterly Newsletter, Q3 2026\nWelcome to our quarterly update! This quarter we launched the workflow builder, hired five engineers and moved into a bigger office. Thanks for being part of the journey."
+      },
+      "expect": {
+        "document_type": [
+          "other"
+        ],
+        "approval_required": false
+      }
+    }
   ]
 }

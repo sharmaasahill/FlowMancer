@@ -267,9 +267,9 @@ export default function LandingPage() {
           intro="AI models make mistakes. FlowMancer is designed around that instead of hiding it.">
           <div className="grid gap-12 lg:grid-cols-12">
             <div className="lg:col-span-4">
-              <p className="font-display text-[96px] leading-[0.9] tracking-[-0.02em] text-bone">30<span className="text-fog">/30</span></p>
+              <p className="font-display text-[96px] leading-[0.9] tracking-[-0.02em] text-bone">100<span className="text-fog">/100</span></p>
               <p className="mt-4 max-w-[30ch] text-[15px] leading-[1.65] text-fog">
-                labelled test cases answered correctly. The same test runs automatically every Monday and fails if fewer than 27 pass.
+                labelled test cases answered correctly. The same test runs automatically every Monday and fails if fewer than 90 pass.
               </p>
             </div>
             <dl className="lg:col-span-8">

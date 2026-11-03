@@ -34,6 +34,8 @@
 
 FlowMancer researches a sales lead on the web, triages an email against your own policies, or checks an invoice. It returns a structured verdict (scores, categories, totals) and proposes an action: a CRM contact, a reply draft, a Finance sign-off. Nothing is sent until someone approves it.
 
+**Try it without signing up:** sign in at [flowmancer.vercel.app/login](https://flowmancer.vercel.app/login) with `demo@flowmancer.dev` / `flowmancer@demo`. The demo account already has sample leads, emails and invoices. Please don't enter real customer data.
+
 The [live demo](https://flowmancer.vercel.app) runs the frontend on Vercel and the API on Render's free plan, so the first visit after a quiet spell can take up to a minute while the server wakes up.
 
 ## What it does
@@ -46,7 +48,7 @@ The [live demo](https://flowmancer.vercel.app) runs the frontend on Vercel and t
 
 You can also ask questions in plain English ("which hot leads came in this week?", "draft a reply to run #12"). The **Ask FlowMancer** assistant looks the answer up in your own runs, approvals and knowledge base.
 
-**Measured accuracy:** 30 out of 30 labelled test cases correct (12 leads, 10 emails, 8 documents) with the default Gemini model, 8.2 s per case on average in quick mode. The cases and the scoring script are in [`backend/eval/`](backend/eval), and the full report is in [`backend/eval/results/`](backend/eval/results). A GitHub Actions job reruns it every week and fails if accuracy drops below 90%. See [Accuracy test set](#accuracy-test-set).
+**Measured accuracy:** 100 out of 100 labelled test cases correct (35 leads, 35 emails, 30 documents) with the default Gemini model, 4.7 s per case on average in quick mode. The cases and the scoring script are in [`backend/eval/`](backend/eval), and the full report is in [`backend/eval/results/`](backend/eval/results). A GitHub Actions job reruns it every week and fails if accuracy drops below 90%. See [Accuracy test set](#accuracy-test-set).
 
 **Measured cost:** in the demo data on the Usage page, a quick-mode email took about 540 tokens, which is about $0.0005 at Google's paid prices. A crew-mode lead made 17 model requests and used about 14,800 tokens (about $0.011). On the free tier both cost nothing.
 
@@ -91,7 +93,7 @@ All screenshots are from a running copy of FlowMancer with real Gemini results, 
 - **Visual workflow builder.** Drag-and-drop trigger, AI, condition and action steps, with templates. Graphs are validated on save (one trigger, no loops), and a test run lights up the path it took.
 - **Dashboard.** Live counts, activity charts, an AI status panel and full run history.
 - **Tests.** 120 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
-- **Accuracy test set in CI.** 30 labelled cases scored against the real model, with a Markdown report. It runs weekly, on demand, and on pull requests that change prompts or the AI code.
+- **Accuracy test set in CI.** 100 labelled cases scored against the real model, with a Markdown report. It runs weekly, on demand, and on pull requests that change prompts or the AI code.
 
 ## Tech stack
 
@@ -142,11 +144,11 @@ cd frontend && npm run lint && npm run build
 
 ### Accuracy test set
 
-[`backend/eval/cases.json`](backend/eval/cases.json) holds 30 hand-labelled inputs, each with the expected answer (lead qualification; email category, priority, sentiment and what the reply must mention; document type, issuer, total, totals check and whether it needs approval). The runner sends every case to the real model and writes a report to `backend/eval/results/`.
+[`backend/eval/cases.json`](backend/eval/cases.json) holds 100 hand-labelled inputs, each with the expected answer (lead qualification; email category, priority, sentiment and what the reply must mention; document type, issuer, total, totals check and whether it needs approval). The runner sends every case to the real model and writes a report to `backend/eval/results/`.
 
 ```bash
 cd backend
-venv/Scripts/python.exe -m eval.run_eval                     # default model from .env (~5 min)
+venv/Scripts/python.exe -m eval.run_eval                     # default model from .env (~15 min)
 venv/Scripts/python.exe -m eval.run_eval --only email        # one kind of case
 venv/Scripts/python.exe -m eval.run_eval --provider ollama   # compare with the local model
 ```
@@ -155,8 +157,7 @@ It uses a temporary database and knowledge store, so your own data is not touche
 
 | Model | Leads | Emails | Documents | Total | Avg time |
 |-------|-------|--------|-----------|-------|----------|
-| `gemini-3.5-flash-lite` | 12/12 | 10/10 | 8/8 | **30/30 (100%)** | 8.2 s |
-| `gemini-3.5-flash-lite`, GitHub Actions run, 28 Oct 2026 | 12/12 | 10/10 | 8/8 | **30/30 (100%)** | 1.5 s |
+| `gemini-3.5-flash-lite`, 3 Nov 2026 | 35/35 | 35/35 | 30/30 | **100/100 (100%)** | 4.7 s |
 
 **In CI:** [`.github/workflows/accuracy.yml`](.github/workflows/accuracy.yml) runs the same test every Monday, from the **Run workflow** button on the Actions tab, and on pull requests that touch prompts, the AI layer or the test cases. It fails below 90% and attaches the report. It needs a repository secret named `GEMINI_API_KEY` (Settings → Secrets and variables → Actions); without one the job is skipped, not failed.
 
@@ -301,7 +302,7 @@ Free hosts put the backend to sleep when it's idle. The first visit then takes u
 - **Accounts are basic.** There's no password reset, email verification or roles. Rate limiting covers failed sign-ins only. The sign-in token is kept in the browser's local storage, so a script injected into the page could read it.
 - **Costs are estimates.** They use the token counts each model reports and the prices in `AI_PRICES`, not Google's bill. Usage before this feature was added isn't counted.
 - **Integrations are per server, not per account.** Every account posts to the same Slack channel and HubSpot portal, and the inbox belongs to one account.
-- **The accuracy test set is small** (30 cases written by the author). It catches regressions; it doesn't prove the model is right on real-world data.
+- **The accuracy test set is small** (100 cases written by the author). It catches regressions; it doesn't prove the model is right on real-world data.
 - **Research is best-effort.** Web results can be outdated or about a different company with the same name. Sources are shown so a person can check them.
 - **Scanned PDFs** (images) need OCR, which isn't included.
 - **The inbox uses IMAP app passwords,** not OAuth. Fetched emails are marked as read.
