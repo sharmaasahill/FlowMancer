@@ -137,6 +137,17 @@ def test_send_after_approval(client, monkeypatch):
     assert sent["to"] == "jane@customer.com" and sent["box"].smtp_host == "smtp.gmail.com"
 
 
+def test_daily_limit_spares_the_server_owner(anon, monkeypatch):
+    monkeypatch.setattr(settings, "DAILY_RUN_LIMIT", 1)
+    owner, other = sign_up(anon), sign_up(anon, email="b@test.com")
+    lead = {"name": "Asha", "email": "asha@acme.com"}
+    for _ in range(2):
+        assert anon.post("/api/use-cases/qualify-lead", json=lead, headers=auth(owner)).status_code == 200
+    assert anon.post("/api/use-cases/qualify-lead", json=lead, headers=auth(other)).status_code == 200
+    r = anon.post("/api/use-cases/qualify-lead", json=lead, headers=auth(other))
+    assert r.status_code == 429 and "You've reached today's limit of 1 runs" in r.json()["detail"]
+
+
 def test_account_settings_and_deletion(anon, monkeypatch):
     owner, other = sign_up(anon), sign_up(anon, email="b@test.com")
     h = auth(other)

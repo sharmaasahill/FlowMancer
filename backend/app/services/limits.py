@@ -1,7 +1,8 @@
 """
 Daily run limits, and small server-wide values kept in the app_state table.
 
-The demo account may start DEMO_DAILY_RUN_LIMIT runs per day; other accounts DAILY_RUN_LIMIT (0 = no limit).
+The demo account may start DEMO_DAILY_RUN_LIMIT runs per day; other accounts DAILY_RUN_LIMIT (0 = no limit),
+except the server owner, who has no limit.
 "A day" is midnight to midnight at LOCAL_UTC_OFFSET_MINUTES (India by default).
 """
 from datetime import date, datetime, timedelta, timezone
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import AppState, Run, User
+from app.services import accounts
 
 DEMO_RESET_AT = "demo_reset_at"
 
@@ -57,14 +59,19 @@ def local_day_start_utc(now: Optional[datetime] = None) -> datetime:
 
 
 # ---------- limits ----------
-def daily_limit(user: User) -> int:
-    return settings.DEMO_DAILY_RUN_LIMIT if user.is_demo else settings.DAILY_RUN_LIMIT
+def daily_limit(db: Session, user: User) -> int:
+    if user.is_demo:
+        return settings.DEMO_DAILY_RUN_LIMIT
+    if settings.DAILY_RUN_LIMIT <= 0:
+        return 0
+    owner = accounts.inbox_owner(db)
+    return 0 if owner is not None and owner.id == user.id else settings.DAILY_RUN_LIMIT
 
 
 def check(db: Session, user_id: Optional[int]):
     """Raise RunLimitError if the account can't start another run today."""
     user = db.get(User, user_id) if user_id is not None else None
-    limit = daily_limit(user) if user else 0
+    limit = daily_limit(db, user) if user else 0
     if limit <= 0:
         return
     since = local_day_start_utc()

@@ -123,7 +123,7 @@ function ApprovalCard({ approval, onDecided, selected, onToggle, canSend }: {
           <label htmlFor={`a${approval.id}-note`} className="sr-only">Note (optional)</label>
           <input id={`a${approval.id}-note`} value={note} onChange={(e) => setNote(e.target.value)} className="field" placeholder="Add a note (optional)" />
           <ErrorBanner message={error} />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 [&>button]:whitespace-nowrap">
             <button type="button" onClick={() => decide('approve')} disabled={!!busy} className="btn-primary flex-1 !py-2.5">
               {busy === 'approve' ? <Spinner className="h-4 w-4 text-white" /> : <Check className="h-4 w-4" aria-hidden />}
               {isReply ? ' Save as draft' : ' Approve'}

@@ -38,8 +38,9 @@ class Settings(BaseSettings):
     DEMO_EMAIL: str = "demo@flowmancer.dev"
     DEMO_PASSWORD: str = "flowmancer@demo"
     DEMO_DAILY_RUN_LIMIT: int = 30
-    # Runs per day for every other account (0 = no limit)
-    DAILY_RUN_LIMIT: int = 0
+    # Runs per day for every other account except the server owner (0 = no limit). Protects the
+    # Gemini free-tier quota when sign-ups are open.
+    DAILY_RUN_LIMIT: int = 20
     # What "a day" means for daily limits and the nightly demo reset, in minutes from UTC (330 = India)
     LOCAL_UTC_OFFSET_MINUTES: int = 330
 

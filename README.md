@@ -60,9 +60,9 @@ All screenshots are from a running copy of FlowMancer with real Gemini results, 
 
 <img src="docs/screenshots/dashboard.png" width="100%" alt="The overview page: greeting, counts of leads, emails and documents, the AI status panel with the model name, and recent activity">
 
-**Approvals.** Every proposed reply, CRM contact and invoice sign-off waits here. Edit any field, then approve or reject it.
+**Approvals.** Every proposed reply, CRM contact and invoice sign-off waits here. Edit any field, then approve or reject it, or tick several and decide them at once. A reply is saved as a Gmail draft, or sent straight away with **Send now**.
 
-<img src="docs/screenshots/approvals.png" width="100%" alt="The approvals page with a drafted reply to a refund email and a HubSpot contact for a new lead, both editable and pending">
+<img src="docs/screenshots/approvals.png" width="100%" alt="The approvals page with two proposals ticked for bulk approval: a reply in Hindi to a password-reset email with Save as draft, Send now and Reject buttons, and an invoice whose total does not add up, waiting for Finance">
 
 **Ask FlowMancer.** Questions in plain English, answered from your own data, with links to the runs it read.
 
@@ -95,7 +95,7 @@ All screenshots are from a running copy of FlowMancer with real Gemini results, 
 - **Actions:** Slack, HubSpot, Gmail drafts or sent replies, and outbound webhooks for Zapier, n8n and Make. Each account connects its own on the Integrations page. Credentials are tested live before they're saved, then stored encrypted (Fernet, key derived from `JWT_SECRET`).
 - **Visual workflow builder.** Drag-and-drop trigger, AI, condition and action steps, with templates. Graphs are validated on save (one trigger, no loops), and a test run lights up the path it took.
 - **Dashboard.** Live counts, activity charts, an AI status panel and full run history.
-- **Tests.** 127 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
+- **Tests.** 128 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
 - **Accuracy test set in CI.** 100 labelled cases scored against the real model, with a Markdown report. It runs weekly, on demand, and on pull requests that change prompts or the AI code.
 
 ## Tech stack
@@ -186,7 +186,7 @@ Everything lives in `backend/.env`. Only `GEMINI_API_KEY` is required. [`backend
 | `INBOX_OWNER_EMAIL` | The server owner: uses the Slack, HubSpot, webhook and IMAP settings above | first account (never the demo) |
 | `SMTP_HOST` / `SMTP_PORT` | Sending approved replies for the server mailbox | from `IMAP_HOST`, `465` |
 | `DEMO_ENABLED` | Show **Try the demo** and keep the shared demo account (reset nightly) | `true` |
-| `DEMO_DAILY_RUN_LIMIT` / `DAILY_RUN_LIMIT` | Runs per day for the demo account / every other account (0 = no limit) | `30` / `0` |
+| `DEMO_DAILY_RUN_LIMIT` / `DAILY_RUN_LIMIT` | Runs per day for the demo account / every other account except the server owner (0 = no limit) | `30` / `20` |
 | `LOCAL_UTC_OFFSET_MINUTES` | Where "midnight" is for daily limits and the demo reset | `330` (IST) |
 | `GOOGLE_CLIENT_ID` | Shows the "Sign in with Google" button. See [Sign in with Google](#sign-in-with-google) | - |
 | `DATABASE_URL` | Database. Hosted Postgres URLs (`postgres://…` or `postgresql://…`) work as given | local SQLite file |
