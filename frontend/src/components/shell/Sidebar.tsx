@@ -81,14 +81,17 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         </Link>
         {user && (
-          <div className="flex items-center gap-3 border-t border-white/[0.06] p-3">
+          <div className="flex items-center gap-1 border-t border-white/[0.06] p-1.5">
+            <Link href="/settings" onClick={onNavigate} title="Account settings"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1.5 transition hover:bg-white/[0.04]">
             <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-gradient-to-br from-crimson-500 to-crimson-800 text-[11px] font-bold text-white" aria-hidden>
               {initials}
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-bone">{user.name}</p>
-              <p className="truncate text-xs text-fog">{user.email}</p>
+              <p className="truncate text-xs text-fog">{user.is_demo ? 'Demo account' : user.email}</p>
             </div>
+            </Link>
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out"
               className="rounded-full p-2 text-fog transition hover:bg-white/[0.06] hover:text-bone">
               <LogOut className="h-4 w-4" aria-hidden />

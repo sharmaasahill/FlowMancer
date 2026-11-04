@@ -4,7 +4,11 @@ Accounts.
 POST /api/auth/register            {email, name, password} -> {token, user}
 POST /api/auth/login               {email, password}       -> {token, user}
 POST /api/auth/google              {access_token} or {credential} -> {token, user}   (Sign in with Google)
+POST /api/auth/demo                sign in to the shared demo account (no password needed)
 GET  /api/auth/me                  the signed-in user (includes the trigger key)
+PATCH /api/auth/me                 {name}
+POST /api/auth/password            {current_password, new_password}
+DELETE /api/auth/me                {confirm_email, password} deletes the account and all its data
 POST /api/auth/trigger-key/rotate  new key for the public form/webhook triggers
 """
 from typing import Optional
@@ -20,7 +24,7 @@ from app.core import security
 from app.core.security import create_token
 from app.models import User
 from app.schemas.workflow import UTCDateTime
-from app.services import accounts
+from app.services import accounts, demo
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -58,6 +62,7 @@ class UserOut(BaseModel):
     trigger_key: str
     google_linked: bool = False
     has_password: bool = True
+    is_demo: bool = False
     created_at: Optional[UTCDateTime] = None
 
 
@@ -73,9 +78,9 @@ def _session(user: User) -> Session_:
 @router.get("/config")
 def auth_config(db: Session = Depends(get_db)):
     """Whether sign-up is possible, and the Google client ID if Google sign-in is set up (public values)."""
-    has_users = db.query(User).count() > 0
+    has_users = accounts.real_users(db).count() > 0
     return {"signups_open": settings.ALLOW_SIGNUPS or not has_users, "has_users": has_users,
-            "google_client_id": settings.GOOGLE_CLIENT_ID or None}
+            "google_client_id": settings.GOOGLE_CLIENT_ID or None, "demo_enabled": settings.DEMO_ENABLED}
 
 
 @router.post("/register", response_model=Session_, status_code=201)
@@ -110,12 +115,56 @@ def google(body: GoogleInput, db: Session = Depends(get_db)):
     return _session(user)
 
 
+@router.post("/demo", response_model=Session_)
+def demo_session(db: Session = Depends(get_db)):
+    """Sign in to the shared demo account (sandboxed, reset every night). Works even when sign-ups are closed."""
+    if not settings.DEMO_ENABLED:
+        raise HTTPException(status_code=404, detail="The demo is turned off on this server.")
+    return _session(demo.ensure_demo_user(db))
+
+
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(current_user)):
     return user
 
 
+class NameInput(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+
+
+class PasswordInput(BaseModel):
+    current_password: Optional[str] = Field(None, max_length=200)
+    new_password: str = Field(..., min_length=8, max_length=200)
+
+
+class DeleteInput(BaseModel):
+    confirm_email: str = Field(..., max_length=320)
+    password: Optional[str] = Field(None, max_length=200)
+
+
+def _account_call(fn, *args):
+    try:
+        return fn(*args)
+    except accounts.AccountError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(body: NameInput, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return _account_call(accounts.update_name, db, user, body.name)
+
+
+@router.post("/password", response_model=UserOut)
+def change_password(body: PasswordInput, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return _account_call(accounts.change_password, db, user, body.current_password, body.new_password)
+
+
+@router.delete("/me", status_code=204)
+def delete_me(body: DeleteInput, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    _account_call(accounts.delete_account, db, user, body.confirm_email, body.password)
+
+
 @router.post("/trigger-key/rotate", response_model=UserOut)
 def rotate_key(user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return accounts.rotate_trigger_key(db, user)  # same session as current_user
+    return _account_call(accounts.rotate_trigger_key, db, user)  # same session as current_user
 

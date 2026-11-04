@@ -10,12 +10,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import (approvals, assistant, auth, executions, knowledge, runs, system, triggers, usage, use_cases,
-                     workflows)
+from app.api import (approvals, assistant, auth, connections, executions, knowledge, runs, system, triggers, usage,
+                     use_cases, workflows)
 from app.core.config import settings
 from app.core.database import init_db
-from app.services import inbox
+from app.services import demo, inbox
 from app.services import knowledge as knowledge_store
+from app.services.limits import RunLimitError
 
 log = logging.getLogger("flowmancer")
 
@@ -35,9 +36,11 @@ async def lifespan(_: FastAPI):
     # In the background: the embedding model may need to load, and the server should answer meanwhile
     threading.Thread(target=_rebuild_knowledge, name="knowledge-rebuild", daemon=True).start()
     inbox.start_background_polling()
+    demo.start_scheduler()
     log.info("%s v%s started. Docs: /api/docs", settings.APP_NAME, settings.APP_VERSION)
     yield
     inbox.stop_background_polling()
+    demo.stop_scheduler()
 
 
 app = FastAPI(
@@ -56,6 +59,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],  # file name of CSV exports
 )
 
 
@@ -74,8 +78,14 @@ def health_check():
     return {"status": "healthy", "app": settings.APP_NAME, "version": settings.APP_VERSION}
 
 
-for module in (auth, assistant, use_cases, runs, approvals, knowledge, triggers, workflows, executions, system, usage):
+for module in (auth, assistant, use_cases, runs, approvals, knowledge, triggers, workflows, executions, system, usage,
+               connections):
     app.include_router(module.router, prefix="/api")
+
+
+@app.exception_handler(RunLimitError)
+async def run_limit_handler(request: Request, exc: RunLimitError):
+    return JSONResponse(status_code=429, content={"detail": str(exc)})
 
 
 @app.exception_handler(Exception)

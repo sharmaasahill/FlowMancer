@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, BookOpen, Check, Copy, Globe, Zap } from 'lucide-react';
-import type { ActionResult, Approval, DocumentResult, EmailResult, LeadResult, Run } from '@/types';
-import { Badge, rise, ScoreRing, stagger, StatusBadge } from '@/components/ui';
+import { ArrowRight, BookOpen, Check, Copy, Flag, Globe, Zap } from 'lucide-react';
+import type { ActionResult, Approval, DocumentResult, EmailResult, Feedback as FeedbackItem, LeadResult, Run } from '@/types';
+import { Badge, ErrorBanner, Field, rise, ScoreRing, Spinner, stagger, StatusBadge } from '@/components/ui';
+import { errorMessage, runsApi } from '@/lib/api';
 import { cn, hostname, LEVEL_TONES } from '@/lib/utils';
 
 function Level({ value }: { value: string }) {
@@ -108,7 +109,8 @@ function EmailView({ o }: { o: EmailResult }) {
         </div>
         <p className="font-display text-2xl leading-snug text-bone">{o.summary}</p>
       </motion.div>
-      <Facts rows={[['Team', o.assigned_team], ['Action needed', o.action_required ? 'Yes' : 'No'], ['Tags', o.tags?.join(', ')]]} />
+      <Facts rows={[['Team', o.assigned_team], ['Action needed', o.action_required ? 'Yes' : 'No'], ['Language', o.language],
+        ['Tags', o.tags?.join(', ')]]} />
       {o.draft_reply ? (
         <Section title="Draft reply">
           <div className="relative rounded-2xl border border-white/[0.07] bg-noir-950/50 p-5">
@@ -186,6 +188,87 @@ function Actions({ actions }: { actions: ActionResult[] }) {
   );
 }
 
+const FEEDBACK_FIELDS: Record<string, [string, string][]> = {
+  lead: [['lead_score', 'Score'], ['qualification', 'Qualification'], ['assigned_to', 'Team'], ['priority', 'Priority']],
+  email: [['category', 'Category'], ['priority', 'Priority'], ['sentiment', 'Sentiment'], ['draft_reply', 'Reply'],
+    ['language', 'Language']],
+  document: [['document_type', 'Type'], ['counterparty', 'Issuer'], ['total_amount', 'Total'],
+    ['validation_status', 'Validation'], ['approval_required', 'Approval needed']],
+};
+
+/** "This is wrong": report a field the AI got wrong, saved with the run. */
+function Feedback({ run }: { run: Run }) {
+  const fields = [...(FEEDBACK_FIELDS[run.kind] || []), ['other', 'Something else'] as [string, string]];
+  const [items, setItems] = useState<FeedbackItem[]>(run.feedback || []);
+  const [open, setOpen] = useState(false);
+  const [field, setField] = useState(fields[0][0]);
+  const [correct, setCorrect] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const label = (f: string) => fields.find(([k]) => k === f)?.[1] || f;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      setItems((await runsApi.feedback(run.id, field, correct, note)).feedback || []);
+      setOpen(false);
+      setCorrect('');
+      setNote('');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <motion.div variants={rise} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+      {items.length > 0 && (
+        <ul className="mb-3 space-y-1.5">
+          {items.map((f, i) => (
+            <li key={i} className="text-sm text-bone/90">
+              <span className="text-coral">Reported wrong:</span> {label(f.field)}
+              {f.correct && <> (should be <strong className="font-semibold">{f.correct}</strong>)</>}
+              {f.note && <span className="text-fog">. {f.note}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)} className="btn-quiet !px-3 !py-1.5 text-sm">
+          <Flag className="h-3.5 w-3.5" aria-hidden />This is wrong
+        </button>
+      ) : (
+        <form onSubmit={submit} className="space-y-3">
+          <p className="text-sm text-fog">What did it get wrong? The report is saved with this run.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Which part" htmlFor={`fb-field-${run.id}`}>
+              <select id={`fb-field-${run.id}`} value={field} onChange={(e) => setField(e.target.value)} className="field">
+                {fields.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </Field>
+            <Field label="Right answer (optional)" htmlFor={`fb-correct-${run.id}`}>
+              <input id={`fb-correct-${run.id}`} maxLength={500} value={correct} onChange={(e) => setCorrect(e.target.value)}
+                className="field" placeholder="e.g. 40, billing, Finance" />
+            </Field>
+          </div>
+          <Field label="Note (optional)" htmlFor={`fb-note-${run.id}`}>
+            <input id={`fb-note-${run.id}`} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} className="field" />
+          </Field>
+          <ErrorBanner message={error} />
+          <div className="flex gap-2">
+            <button type="submit" disabled={busy} className="btn-primary !py-2">{busy && <Spinner className="h-4 w-4 text-white" />}Save report</button>
+            <button type="button" onClick={() => setOpen(false)} className="btn-quiet !py-2">Cancel</button>
+          </div>
+        </form>
+      )}
+    </motion.div>
+  );
+}
+
 export default function RunResult({ run, approvals }: { run: Run; approvals?: Approval[] }) {
   if (run.status === 'failed') {
     return (
@@ -260,6 +343,8 @@ export default function RunResult({ run, approvals }: { run: Run; approvals?: Ap
           <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-fog">{run.raw_text}</pre>
         </motion.details>
       )}
+
+      <Feedback run={run} />
     </motion.div>
   );
 }

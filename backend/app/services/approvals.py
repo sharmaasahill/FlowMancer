@@ -1,17 +1,17 @@
 """
 Human-in-the-loop approvals.
 
-The AI proposes an action (save a reply draft, push a contact to the CRM, approve a
-document, post to Slack). A person approves, edits or rejects it. Only on approval
-does the action actually run.
+The AI proposes an action (a reply, a CRM contact, a document approval, a Slack post).
+A person approves, edits or rejects it. Only on approval does the action run, with that
+account's own integrations. Replies are saved as Gmail drafts unless the person chooses Send.
 """
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.integrations import append_draft, post_slack, post_webhook, upsert_contact
 from app.models import Approval
+from app.services import connections
 
 ACTIONS = ("email_reply", "crm_contact", "document_approval", "slack_message")
 
@@ -118,27 +118,33 @@ def create(db: Session, proposal: Dict, user_id: Optional[int], run_id: Optional
 
 
 # ---------- execution ----------
-def execute_action(action: str, payload: Dict) -> Dict:
+def execute_action(action: str, payload: Dict, integ: Optional[connections.UserIntegrations] = None,
+                   delivery: str = "draft") -> Dict:
+    """Run an approved action with the account's own integrations. Email replies are drafted unless
+    delivery == "send"."""
+    integ = integ or connections.UserIntegrations()
     steps: List[Dict] = []
     if action == "email_reply":
         if not payload.get("to") or not payload.get("body"):
             raise ApprovalError("Reply needs 'to' and 'body'")
-        steps.append({"target": "mailbox draft",
-                      **append_draft(payload["to"], payload.get("subject", ""), payload["body"],
-                                     payload.get("in_reply_to"))})
+        args = (payload["to"], payload.get("subject", ""), payload["body"], payload.get("in_reply_to"))
+        if delivery == "send":
+            steps.append({"target": "Gmail (sent)", **integ.send(*args)})
+        else:
+            steps.append({"target": "mailbox draft", **integ.draft(*args)})
     elif action == "crm_contact":
-        steps.append({"target": "HubSpot", **upsert_contact(payload)})
+        steps.append({"target": "HubSpot", **integ.crm(payload)})
     elif action == "document_approval":
         amount = payload.get("total_amount")
         money = f" for {amount:g} {payload.get('currency') or ''}".rstrip() if amount is not None else ""
         text = (f"Approved: {payload.get('document_type')} from {payload.get('counterparty') or 'unknown'}"
                 f"{money}. {payload.get('summary', '')}")
-        steps.append({"target": "Slack", **post_slack(text)})
-        steps.append({"target": "Webhook", **post_webhook({"event": "document_approved", "document": payload})})
+        steps.append({"target": "Slack", **integ.slack(text)})
+        steps.append({"target": "Webhook", **integ.webhook({"event": "document_approved", "document": payload})})
     elif action == "slack_message":
         if not payload.get("text"):
             raise ApprovalError("Slack message needs 'text'")
-        steps.append({"target": "Slack", **post_slack(payload["text"])})
+        steps.append({"target": "Slack", **integ.slack(payload["text"])})
     else:
         raise ApprovalError(f"Unknown action: {action}")
 
@@ -153,9 +159,15 @@ def _decide(db: Session, approval: Approval, status: str, note: Optional[str]):
     approval.decided_at = datetime.now(timezone.utc)
 
 
-def approve(db: Session, approval: Approval, edits: Optional[Dict], note: Optional[str]) -> Approval:
+def approve(db: Session, approval: Approval, edits: Optional[Dict], note: Optional[str],
+            delivery: str = "draft") -> Approval:
     if approval.status != "pending":
         raise ApprovalError(f"Approval is already {approval.status}")
+    integ = connections.for_user(approval.user_id, db)
+    if delivery == "send" and (approval.action != "email_reply" or integ.mailbox is None):
+        raise ApprovalError("Sending needs an email reply and a connected Gmail. Connect Gmail on the "
+                            "Integrations page, or save it as a draft." if approval.action == "email_reply"
+                            else "Only email replies can be sent")
     payload = dict(approval.payload or {})
     if edits:
         unknown = set(edits) - set(payload)
@@ -163,7 +175,7 @@ def approve(db: Session, approval: Approval, edits: Optional[Dict], note: Option
             raise ApprovalError(f"Unknown fields: {', '.join(sorted(unknown))}")
         payload.update(edits)
     approval.payload = payload
-    approval.result = execute_action(approval.action, payload)
+    approval.result = execute_action(approval.action, payload, integ, delivery)
     _decide(db, approval, "approved", note)
     db.commit()
     db.refresh(approval)

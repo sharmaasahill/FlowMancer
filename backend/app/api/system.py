@@ -4,15 +4,15 @@ Dashboard stats and integration status.
 import time
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core import llm
 from app.core.config import settings
 from app.api.deps import current_user
 from app.core.database import get_db
-from app.models import User
-from app.services import accounts, inbox, stats
+from app.models import Run, User
+from app.services import connections, demo, inbox, stats
 
 router = APIRouter(tags=["system"])
 
@@ -73,15 +73,16 @@ def _ai_status() -> dict:
 
 @router.get("/integrations")
 def integrations(db: Session = Depends(get_db), user: User = Depends(current_user)):
-    owner = accounts.inbox_owner(db)
+    own = connections.status(db, user)
     return {
         "ai": _ai_status(),
         "research": {"enabled": settings.RESEARCH_ENABLED, "engine": "DuckDuckGo + company website"},
-        "slack": {"configured": bool(settings.SLACK_WEBHOOK_URL)},
-        "hubspot": {"configured": bool(settings.HUBSPOT_ACCESS_TOKEN)},
-        "webhook": {"configured": bool(settings.WEBHOOK_URL)},
-        "mailbox": {**inbox.status(), "is_owner": bool(owner and owner.id == user.id),
-                    "owner_email": owner.email if owner else None},
+        "slack": own["slack"],
+        "hubspot": own["hubspot"],
+        "webhook": own["webhook"],
+        "gmail": own["gmail"],
+        "mailbox": inbox.status(db, user),
+        "can_connect": not user.is_demo,
         "triggers": {
             "key": user.trigger_key,
             "form_url": "/api/triggers/form",
@@ -92,3 +93,11 @@ def integrations(db: Session = Depends(get_db), user: User = Depends(current_use
             "document_approval_amount": settings.DOCUMENT_APPROVAL_AMOUNT,
         },
     }
+
+
+@router.post("/sample-data", status_code=201)
+def load_sample_data(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """Fill a new account with a sample business (leads, emails, documents, policies) to explore."""
+    if db.query(Run.id).filter(Run.user_id == user.id).first():
+        raise HTTPException(status_code=409, detail="Sample data can only be added to an account with no runs yet.")
+    return {"runs": demo.seed(db, user)}

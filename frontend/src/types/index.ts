@@ -66,6 +66,7 @@ export interface EmailResult {
   action_required: boolean;
   assigned_team: string;
   tags: string[];
+  language?: string;
 }
 
 export interface DocumentResult {
@@ -103,6 +104,7 @@ export interface Run {
   actions: ActionResult[] | null;
   ai_model: string | null;
   error: string | null;
+  feedback?: Feedback[] | null;
   workflow_execution_id: number | null;
   created_at: string;
   completed_at: string | null;
@@ -219,13 +221,14 @@ export interface Stats {
 export interface Integrations {
   ai: { provider: string; model: string; fallbacks: string[]; reachable: boolean | null; detail: string };
   research: { enabled: boolean; engine: string };
-  slack: { configured: boolean };
-  hubspot: { configured: boolean };
-  webhook: { configured: boolean };
+  slack: ConnectionStatus;
+  hubspot: ConnectionStatus;
+  webhook: ConnectionStatus;
+  gmail: ConnectionStatus;
+  can_connect: boolean;
   mailbox: {
     configured: boolean;
-    is_owner: boolean;
-    owner_email: string | null;
+    source: 'account' | 'server' | null;
     host: string | null;
     user: string | null;
     folder: string;
@@ -239,6 +242,20 @@ export interface Integrations {
   rules: { hot_lead_threshold: number; document_approval_amount: number };
 }
 
+export type Provider = 'slack' | 'hubspot' | 'gmail' | 'webhook';
+/** 'account': connected by this account; 'server': set in the server's backend/.env (server owner only). */
+export interface ConnectionStatus {
+  configured: boolean;
+  source: 'account' | 'server' | null;
+  label: string | null;
+  updated_at: string | null;
+}
+export interface Feedback {
+  field: string;
+  correct: string | null;
+  note: string | null;
+  created_at: string;
+}
 export interface User {
   id: number;
   email: string;
@@ -246,6 +263,7 @@ export interface User {
   trigger_key: string;
   google_linked: boolean;
   has_password: boolean;
+  is_demo: boolean;
   created_at: string | null;
 }
 
@@ -253,6 +271,7 @@ export interface AuthConfig {
   signups_open: boolean;
   has_users: boolean;
   google_client_id: string | null;
+  demo_enabled: boolean;
 }
 
 export interface AuthSession {

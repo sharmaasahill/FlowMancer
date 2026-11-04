@@ -2,7 +2,7 @@
 Human approval queue.
 
 GET  /api/approvals?status=pending
-POST /api/approvals/{id}/approve   body: {"payload": {...edits}, "note": "..."}
+POST /api/approvals/{id}/approve   body: {"payload": {...edits}, "note": "...", "delivery": "draft" | "send"}
 POST /api/approvals/{id}/reject    body: {"note": "..."}
 """
 from typing import List, Optional
@@ -40,9 +40,10 @@ def get_approval(approval_id: int, db: Session = Depends(get_db), user: User = D
 @router.post("/{approval_id}/approve", response_model=ApprovalResponse)
 def approve(approval_id: int, decision: ApprovalDecision = Body(default_factory=ApprovalDecision),
             db: Session = Depends(get_db), user: User = Depends(current_user)):
-    """Approve (optionally with edits). The action runs immediately."""
+    """Approve (optionally with edits). The action runs immediately; email replies are drafted unless delivery=send."""
     try:
-        return service.approve(db, owned(db, Approval, approval_id, user, "Approval"), decision.payload, decision.note)
+        return service.approve(db, owned(db, Approval, approval_id, user, "Approval"), decision.payload, decision.note,
+                               decision.delivery)
     except service.ApprovalError as e:
         raise HTTPException(status_code=409 if "already" in str(e) else 422, detail=str(e))
 

@@ -1,81 +1,109 @@
 """
-Inbox trigger: read unread emails over IMAP and process each one.
+Inbox trigger: read an account's unread emails over IMAP and process each one.
 
-If an active workflow has an "inbox" trigger, each email runs through those
-workflows. Otherwise it goes through the default email pipeline (which creates
-a reply-draft approval).
+Every account reads its own connected Gmail (the server owner may also use the server's IMAP_* mailbox).
+If one of the account's active workflows has an "inbox" trigger, each email runs through those
+workflows. Otherwise it goes through the default email pipeline (which creates a reply approval).
 """
 import logging
 import threading
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Dict, List, Optional
+
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import session_scope
 from app.integrations import mail
-from app.services import accounts
+from app.models import Connection, User
+from app.services import accounts, connections
 from app.services import engine
 from app.services import runs as runs_service
 
 log = logging.getLogger("flowmancer.inbox")
 
-_state: Dict = {"last_poll": None, "last_count": 0, "last_error": None, "polling": False}
+_states: Dict[int, Dict] = {}
+_lock = threading.Lock()
 _stop = threading.Event()
 _thread: Optional[threading.Thread] = None
 
 
-def status() -> Dict:
+def _state(user_id: int) -> Dict:
+    with _lock:
+        return _states.setdefault(user_id, {"last_poll": None, "last_count": 0, "last_error": None, "polling": False})
+
+
+def status(db: Session, user: User) -> Dict:
+    integ = connections.for_user(user.id, db)
+    box = integ.mailbox
     return {
-        "configured": settings.imap_configured,
-        "host": settings.IMAP_HOST or None,
-        "user": settings.IMAP_USER or None,
-        "folder": settings.IMAP_FOLDER,
+        "configured": box is not None,
+        "source": integ.sources.get("gmail"),
+        "host": box.host if box else None,
+        "user": box.user if box else None,
+        "folder": box.folder if box else "INBOX",
         "auto_poll_seconds": settings.INBOX_POLL_SECONDS,
-        **_state,
+        **_state(user.id),
     }
 
 
-def poll_once() -> Dict:
-    """Fetch unread emails and dispatch them. Returns a summary."""
-    if _state["polling"]:
-        return {"status": "busy", "detail": "A poll is already running"}
-    _state["polling"] = True
+def poll_once(user_id: int) -> Dict:
+    """Fetch the account's unread emails and dispatch them. Returns a summary."""
+    state = _state(user_id)
+    with _lock:
+        if state["polling"]:
+            return {"status": "busy", "detail": "A poll is already running"}
+        state["polling"] = True
     try:
-        with session_scope() as db:
-            owner = accounts.inbox_owner(db)
-        if owner is None:
-            raise RuntimeError("No account to receive inbox emails yet. Create an account first.")
-        messages = mail.fetch_unseen()
+        box = connections.for_user(user_id).mailbox
+        if box is None:
+            raise RuntimeError("No mailbox connected. Connect Gmail on the Integrations page.")
+        messages = mail.fetch_unseen(box)
         dispatched = []
         with session_scope() as db:
-            flows = engine.workflows_for_trigger(db, "inbox", owner.id)
+            flows = engine.workflows_for_trigger(db, "inbox", user_id)
             for msg in messages:
                 if flows:
                     for wf in flows:
                         ex = engine.start_execution(db, wf, msg)
                         dispatched.append({"subject": msg["subject"], "workflow_execution_id": ex.id})
                 else:
-                    run = runs_service.run_in_background(db, "email", msg, "quick", source="inbox", user_id=owner.id)
+                    run = runs_service.run_in_background(db, "email", msg, "quick", source="inbox", user_id=user_id)
                     dispatched.append({"subject": msg["subject"], "run_id": run.id})
-        _state.update(last_poll=datetime.now(timezone.utc).isoformat(), last_count=len(messages), last_error=None)
+        state.update(last_poll=datetime.now(timezone.utc).isoformat(), last_count=len(messages), last_error=None)
         return {"status": "success", "fetched": len(messages), "dispatched": dispatched}
     except Exception as e:
-        _state.update(last_poll=datetime.now(timezone.utc).isoformat(), last_error=str(e))
+        state.update(last_poll=datetime.now(timezone.utc).isoformat(), last_error=str(e))
         return {"status": "error", "detail": str(e)}
     finally:
-        _state["polling"] = False
+        state["polling"] = False
+
+
+def _accounts_with_mailbox() -> List[int]:
+    with session_scope() as db:
+        ids = {uid for (uid,) in db.query(Connection.user_id).filter(Connection.provider == "gmail")}
+        owner = accounts.inbox_owner(db) if settings.imap_configured else None
+        if owner is not None:
+            ids.add(owner.id)
+    return sorted(i for i in ids if i is not None)
 
 
 def _loop():
     while not _stop.wait(settings.INBOX_POLL_SECONDS):
-        result = poll_once()
-        if result.get("status") == "error":
-            log.warning("Inbox poll failed: %s", result.get("detail"))
+        try:
+            user_ids = _accounts_with_mailbox()
+        except Exception:
+            log.warning("Inbox poll: could not list accounts", exc_info=True)
+            continue
+        for user_id in user_ids:
+            result = poll_once(user_id)
+            if result.get("status") == "error":
+                log.warning("Inbox poll for account %s failed: %s", user_id, result.get("detail"))
 
 
 def start_background_polling():
     global _thread
-    if settings.INBOX_POLL_SECONDS > 0 and settings.imap_configured and _thread is None:
+    if settings.INBOX_POLL_SECONDS > 0 and _thread is None:
         _stop.clear()
         _thread = threading.Thread(target=_loop, name="flowmancer-inbox", daemon=True)
         _thread.start()

@@ -43,7 +43,7 @@ export default function ApprovalDemo() {
         {state === 'approved' && (
           <>
             <Check className="h-4 w-4 shrink-0 text-jade" aria-hidden />
-            <span className="text-[13px] text-bone">Saved to Gmail as a draft. You still press Send yourself.</span>
+            <span className="text-[13px] text-bone">Saved to Gmail as a draft. You could also choose Send to reply straight away.</span>
             <button type="button" onClick={reset} className="ml-auto text-[13px] text-fog hover:text-bone">Start again</button>
           </>
         )}

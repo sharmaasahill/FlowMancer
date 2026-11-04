@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
-import { PrimaryCta } from '@/components/landing/AccountLinks';
+import { PrimaryCta, TryDemo } from '@/components/landing/AccountLinks';
 import ApprovalDemo from '@/components/landing/ApprovalDemo';
 import ExampleTabs from '@/components/landing/ExampleTabs';
 import HeroDemo from '@/components/landing/HeroDemo';
@@ -37,12 +37,14 @@ const STEPS = [
   { title: 'Something arrives', text: 'A form on your website, a new email in Gmail, or a file you upload. In the demo you paste it in.' },
   { title: 'FlowMancer reads it', text: 'It works out what the item is and what it needs. It looks up the company behind a lead and checks your own policies for an email.' },
   { title: 'It drafts the next step', text: 'A score and the right salesperson, a reply, or a checked invoice, each with the reasons behind it.' },
-  { title: 'You approve it', text: 'Edit anything, then approve. Only then does the reply become a Gmail draft or the contact go into your CRM.' },
+  { title: 'You approve it', text: 'Edit anything, then approve. Only then does the reply become a Gmail draft (or go out, if you choose Send) or the contact go into your CRM.' },
 ];
 
 const TOOLKIT = [
   { title: 'Company research', text: 'For each lead it searches the web and reads the company’s own site, and keeps the links so you can check them.' },
   { title: 'Your policies, quoted', text: 'Upload price lists, refund rules or FAQs. Replies use their exact terms instead of guessing.' },
+  { title: 'Replies in their language', text: 'An email in Hindi, Spanish or Hinglish gets its reply in the same language. The summary stays in English for your team.' },
+  { title: 'Your own connections', text: 'Each account connects its own Slack, HubSpot and Gmail. Keys are tested first, then stored encrypted.' },
   { title: 'Automations without code', text: 'Connect steps on a canvas. For example: score each website lead, and tell sales on Slack when it scores 80 or more.' },
   { title: 'Quick or thorough', text: 'One fast pass in a few seconds, or four specialist AI agents taking turns for a closer read.' },
   { title: 'Progress you can follow', text: 'Each step appears as it happens, with how long it took.' },
@@ -52,7 +54,7 @@ const TOOLKIT = [
 ];
 
 const SAFEGUARDS = [
-  { title: 'It never sends an email', text: 'An approved reply becomes a draft in Gmail. You still press Send.' },
+  { title: 'Nothing goes out unapproved', text: 'An approved reply becomes a Gmail draft by default. Teams that trust it can choose Send for a reply as they approve it.' },
   { title: 'Code does the maths', text: 'Lead scores are added up, invoice totals recalculated and approval rules applied by ordinary code, not by the AI.' },
   { title: 'It shows its working', text: 'Every result lists its reasons, the web pages it read and the part of your policy it used, so a person can check it quickly.' },
 ];
@@ -68,7 +70,7 @@ const QUESTIONS: { q: string; a: string; link?: { href: string; label: string } 
   },
   {
     q: 'Will it do anything without asking?',
-    a: 'It never sends an email: replies only become Gmail drafts, and CRM updates wait for approval. The one automatic action is a Slack heads-up when a strong lead or an urgent email comes in. If you build your own automation, you choose which steps need approval.',
+    a: 'Nothing goes out without approval. Approved replies become Gmail drafts unless you choose Send for that reply, and CRM updates wait for approval too. The one automatic action is a Slack heads-up when a strong lead or an urgent email comes in. If you build your own automation, you choose which steps need approval.',
   },
   {
     q: 'Can it get things wrong?',
@@ -162,6 +164,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-start gap-4 lg:col-span-5 lg:items-end lg:justify-end">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <PrimaryCta />
+              <TryDemo />
               <Link href="#examples" className="link-arrow">See real examples <ArrowRight className="h-4 w-4" aria-hidden /></Link>
             </div>
             <p className="text-[13px] text-fog">Free to try. No card needed.</p>
@@ -314,6 +317,7 @@ export default function LandingPage() {
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
             <PrimaryCta label="Create a free account" />
+            <TryDemo />
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="link-arrow">Read the source code <ArrowUpRight className="h-4 w-4" aria-hidden /></a>
           </div>
         </section>

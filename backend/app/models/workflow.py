@@ -1,8 +1,9 @@
 """
 Database models
 """
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, JSON, Float
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, JSON, Float, UniqueConstraint
 from sqlalchemy.sql import func
+from app.core.config import settings
 from app.core.database import Base
 
 
@@ -23,6 +24,11 @@ class User(Base):
     @property
     def google_linked(self) -> bool:
         return bool(self.google_sub)
+
+    @property
+    def is_demo(self) -> bool:
+        """The shared public demo account (sandboxed, reset every night)."""
+        return bool(settings.DEMO_EMAIL) and self.email == settings.DEMO_EMAIL.strip().lower()
 
     @property
     def has_password(self) -> bool:
@@ -83,6 +89,7 @@ class Run(Base):
     actions = Column(JSON, nullable=True)     # automatic actions taken
     ai_model = Column(String(100), nullable=True)
     error = Column(Text, nullable=True)
+    feedback = Column(JSON, nullable=True)    # "This is wrong" reports: [{field, correct, note, created_at}]
 
     workflow_execution_id = Column(Integer, nullable=True, index=True)
 
@@ -143,3 +150,25 @@ class AICall(Base):
     seconds = Column(Float, nullable=True)
     error = Column(String(300), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class Connection(Base):
+    """An integration one account connected for itself: its own Slack, HubSpot, Gmail or webhook."""
+    __tablename__ = "connections"
+    __table_args__ = (UniqueConstraint("user_id", "provider", name="uq_connection_user_provider"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    provider = Column(String(20), nullable=False)   # slack | hubspot | gmail | webhook
+    label = Column(String(255), nullable=True)      # safe to show, e.g. "Key ending 4f2a"
+    secret = Column(Text, nullable=False)           # encrypted JSON (see core.security.encrypt)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AppState(Base):
+    """Small server-wide values, e.g. when the demo account was last reset."""
+    __tablename__ = "app_state"
+
+    key = Column(String(64), primary_key=True)
+    value = Column(Text, nullable=True)

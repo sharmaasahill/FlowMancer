@@ -21,7 +21,9 @@ REPLY_RULES = (
     "and apply them correctly to the sender's situation (check dates and numbers). If the knowledge base "
     "doesn't cover the question, promise a follow-up instead of inventing an answer. "
     "Never claim something has already been done (refund issued, ticket opened, bug fixed): "
-    "a person reviews this draft first, so say what will happen next."
+    "a person reviews this draft first, so say what will happen next. "
+    "Write the reply in the sender's language (Hindi email: reply in Hindi; Spanish: Spanish; a Hindi-English "
+    "mix: the same mix). The summary and other fields stay in English."
 )
 
 

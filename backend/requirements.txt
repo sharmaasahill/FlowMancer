@@ -13,6 +13,8 @@ email-validator==2.3.0
 # Sign in with Google (verifies Google ID tokens)
 google-auth==2.62.0
 requests==2.34.2
+# Encrypts each account's integration secrets at rest
+cryptography==50.0.2
 sqlalchemy==2.1.5
 psycopg2-binary==2.9.13
 

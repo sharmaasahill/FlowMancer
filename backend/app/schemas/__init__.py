@@ -15,6 +15,7 @@ from app.schemas.workflow import (
     RunList,
     ApprovalResponse,
     ApprovalDecision,
+    RunFeedback,
     KnowledgeTextInput,
     KnowledgeDocumentResponse,
 )
@@ -41,6 +42,7 @@ __all__ = [
     "RunList",
     "ApprovalResponse",
     "ApprovalDecision",
+    "RunFeedback",
     "KnowledgeTextInput",
     "KnowledgeDocumentResponse",
     "LeadResult",

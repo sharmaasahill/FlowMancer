@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, FileText, Mail, Users } from 'lucide-react';
@@ -9,8 +9,8 @@ import { useAssistant } from '@/components/assistant/AssistantProvider';
 import { ActivityChart, CategoryBars, QualityDonut } from '@/components/charts.lazy';
 import { QUALITY_COLORS } from '@/lib/utils';
 import Orb from '@/components/Orb';
-import { CountUp, Empty, ErrorBanner, Loading, Panel, rise, Stat, stagger, StatusBadge } from '@/components/ui';
-import { approvalsApi, runsApi } from '@/lib/api';
+import { CountUp, Empty, ErrorBanner, Loading, Panel, rise, Spinner, Stat, stagger, StatusBadge } from '@/components/ui';
+import { approvalsApi, errorMessage, runsApi, systemApi } from '@/lib/api';
 import { useSystem } from '@/lib/system';
 import type { Approval, RunSummary } from '@/types';
 import { greeting, summary, timeAgo, verdict } from '@/lib/utils';
@@ -80,22 +80,39 @@ function AICore({ recent, approvals }: { recent: RunSummary[]; approvals: Approv
 }
 
 export default function Dashboard() {
-  const { stats, error } = useSystem();
+  const { stats, error, refresh } = useSystem();
   const [recent, setRecent] = useState<RunSummary[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [now, setNow] = useState<Date | null>(null);
+  const [sampling, setSampling] = useState(false);
+  const [sampleError, setSampleError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    runsApi.list({ limit: 6 }).then((r) => setRecent(r.items)).catch(() => {});
+    approvalsApi.list('pending').then(setApprovals).catch(() => {});
+  }, []);
+
+  const loadSample = async () => {
+    setSampling(true);
+    setSampleError(null);
+    try {
+      await systemApi.loadSample();
+      await refresh();
+      load();
+    } catch (e) {
+      setSampleError(errorMessage(e));
+    } finally {
+      setSampling(false);
+    }
+  };
 
   useEffect(() => {
     setNow(new Date());
-    const load = () => {
-      runsApi.list({ limit: 6 }).then((r) => setRecent(r.items)).catch(() => {});
-      approvalsApi.list('pending').then(setApprovals).catch(() => {});
-    };
     load();
     // Every 10 s, but not while the tab is in the background
     const t = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 10000);
     return () => clearInterval(t);
-  }, []);
+  }, [load]);
 
   if (!stats) return error ? <ErrorBanner message={error} /> : <Loading label="Waking up" />;
 
@@ -126,13 +143,21 @@ export default function Dashboard() {
           </h1>
           <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-fog">
             {t.runs === 0
-              ? 'Nothing processed yet. Drop in a lead, an email or an invoice and watch the agents work.'
+              ? <>Welcome to FlowMancer. Drop in a lead, an email or an invoice in the Studio and watch the agents work.
+                Or load a sample business first: a made-up Pune software company with three days of leads, support
+                emails, invoices and policies to look around in.</>
               : <>{parts.join(' · ')}.</>}
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Link href="/studio" className="btn-primary !px-5 !py-2.5">Open Studio <ArrowRight className="h-4 w-4" aria-hidden /></Link>
+            {t.runs === 0 && (
+              <button type="button" onClick={loadSample} disabled={sampling} className="btn-ghost !px-5 !py-2.5">
+                {sampling && <Spinner className="h-4 w-4" />}Load sample data
+              </button>
+            )}
             {t.pending_approvals > 0 && <Link href="/approvals" className="btn-ghost !px-5 !py-2.5">Review approvals</Link>}
           </div>
+          {sampleError && <div className="mt-4"><ErrorBanner message={sampleError} /></div>}
         </motion.header>
 
         <motion.div variants={stagger(0.08)} className="grid gap-4 md:h-[400px] md:grid-cols-5 md:grid-rows-2">

@@ -18,6 +18,7 @@ export default function PrivacyPage() {
         <ul>
           <li><b>Account details:</b> your name and email address, and a scrypt hash of your password if you set one. We never store the password itself.</li>
           <li><b>If you sign in with Google:</b> your name, email address, whether Google has verified that email, and your Google account ID. That&apos;s all we receive.</li>
+          <li><b>Connections you add:</b> the Slack webhook URL, HubSpot key, Gmail address and app password, or webhook URL you connect. They are stored encrypted and used only for your account.</li>
           <li><b>What you submit:</b> the leads, emails, documents and knowledge-base text you enter, the AI results, your approvals, workflows and questions to the assistant.</li>
           <li><b>Usage records:</b> for each AI request, the model used, token counts, response time and whether it succeeded.</li>
         </ul>
@@ -37,7 +38,7 @@ export default function PrivacyPage() {
           <li><b>Google Gemini</b> analyses what you submit. On the free tier, Google may use those requests to improve its products. Don&apos;t submit real customer or personal data.</li>
           <li><b>DuckDuckGo</b> receives the company name and email domain of a lead when web research runs, and the company&apos;s public website is fetched.</li>
           <li><b>Hosting:</b> the site runs on Vercel, the server on Render, and the database on Neon.</li>
-          <li><b>Integrations</b> such as Slack, HubSpot or a webhook receive data only when someone approves an action that sends it there.</li>
+          <li><b>Integrations you connect</b> (Slack, HubSpot, Gmail, a webhook) receive data only when someone approves an action that sends it there, or for the Slack alert on a hot lead or urgent email.</li>
         </ul>
 
         <h2>Cookies and storage</h2>
@@ -49,15 +50,16 @@ export default function PrivacyPage() {
 
         <h2>How long we keep data, and deleting it</h2>
         <p>
-          Your data is kept while your account exists. To delete your account and everything in it, email{' '}
+          Your data is kept while your account exists. To delete your account and everything in it, open Settings and
+          choose Delete account; it is removed straight away. If you can&apos;t sign in, email{' '}
           <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> from the address you signed up with, and it will be removed
-          within 30 days. You can also remove FlowMancer&apos;s access to your Google account at any time at{' '}
+          within 30 days. The shared demo account is reset to its sample data every night. You can also remove FlowMancer&apos;s access to your Google account at any time at{' '}
           <a href="https://myaccount.google.com/connections" target="_blank" rel="noreferrer">myaccount.google.com/connections</a>.
         </p>
 
         <h2>Security</h2>
         <p>
-          Passwords are hashed, connections use HTTPS, and each account can see only its own data. No system is perfectly
+          Passwords are hashed, integration keys are encrypted, connections use HTTPS, and each account can see only its own data. No system is perfectly
           secure, so please treat this demo accordingly.
         </p>
 

@@ -7,6 +7,7 @@ Login tokens are signed JWTs (HS256) that carry the user id and expire.
 import base64
 import hashlib
 import hmac
+import json
 import os
 import secrets
 import threading
@@ -83,6 +84,29 @@ def decode_token(token: str) -> Optional[int]:
 
 def new_trigger_key() -> str:
     return "fmk_" + secrets.token_urlsafe(24)
+
+
+# ---------- secrets at rest (integration credentials) ----------
+def _fernet():
+    from cryptography.fernet import Fernet
+
+    key = hashlib.sha256(("flowmancer-connections:" + jwt_secret()).encode()).digest()
+    return Fernet(base64.urlsafe_b64encode(key))
+
+
+def encrypt(data: dict) -> str:
+    """Encrypt a small dict (Fernet: AES + HMAC). The key is derived from JWT_SECRET."""
+    return _fernet().encrypt(json.dumps(data).encode()).decode()
+
+
+def decrypt(token: str) -> Optional[dict]:
+    """The dict from encrypt(), or None if it can't be read (e.g. JWT_SECRET changed)."""
+    from cryptography.fernet import InvalidToken
+
+    try:
+        return json.loads(_fernet().decrypt(token.encode()))
+    except (InvalidToken, ValueError, TypeError):
+        return None
 
 
 class GoogleTokenError(ValueError):

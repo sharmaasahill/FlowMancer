@@ -88,13 +88,15 @@ def test_email_reply_approval_and_spam(client, ai):
 
 
 def test_email_reply_saves_mailbox_draft(client, monkeypatch):
-    from app.services import approvals as service
+    from app.integrations import mail
     saved = {}
 
-    def fake_draft(to, subject, body, in_reply_to=None):
+    def fake_draft(to, subject, body, in_reply_to=None, box=None):
         saved.update(to=to, subject=subject, body=body, in_reply_to=in_reply_to)
         return {"status": "success", "detail": "Draft saved"}
-    monkeypatch.setattr(service, "append_draft", fake_draft)
+    for key, value in (("IMAP_HOST", "imap.example.com"), ("IMAP_USER", "me@example.com"), ("IMAP_PASSWORD", "pw")):
+        monkeypatch.setattr(settings, key, value)  # the server mailbox belongs to this (first) account
+    monkeypatch.setattr(mail, "append_draft", fake_draft)
 
     client.post("/api/use-cases/process-email", json=EMAIL)
     a = pending(client)[0]

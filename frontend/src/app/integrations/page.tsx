@@ -5,14 +5,59 @@ import { motion } from 'framer-motion';
 import { Building2, Check, Copy, Globe, Inbox, KeyRound, MessageSquare, RefreshCw, Webhook } from 'lucide-react';
 import Orb from '@/components/Orb';
 import { useToast } from '@/components/Toast';
-import { ErrorBanner, Loading, PageHeader, Panel, rise, Spinner, stagger } from '@/components/ui';
-import { API_BASE_URL, authApi, errorMessage, systemApi } from '@/lib/api';
+import { ErrorBanner, Field, Loading, PageHeader, Panel, rise, Spinner, stagger } from '@/components/ui';
+import { API_BASE_URL, authApi, connectionsApi, errorMessage, systemApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useSystem } from '@/lib/system';
+import type { ConnectionStatus, Provider } from '@/types';
 import { cn, timeAgo } from '@/lib/utils';
 
-function Connection({ icon: Icon, name, on, detail, setting }: {
-  icon: typeof Globe; name: string; on: boolean; detail: string; setting?: string;
+interface ProviderDef {
+  id: Provider;
+  icon: typeof Globe;
+  name: string;
+  detail: string;
+  fields: { key: string; label: string; type?: string; placeholder?: string }[];
+  help: string;
+}
+
+const PROVIDERS: ProviderDef[] = [
+  {
+    id: 'slack', icon: MessageSquare, name: 'Slack',
+    detail: 'Hot leads, urgent emails and approved documents are posted to a channel.',
+    fields: [{ key: 'webhook_url', label: 'Incoming webhook URL', placeholder: 'https://hooks.slack.com/services/...' }],
+    help: 'In Slack: Apps > Incoming Webhooks > Add to Slack, pick a channel and copy the URL. A test message is posted when you connect.',
+  },
+  {
+    id: 'hubspot', icon: Building2, name: 'HubSpot CRM', detail: 'Approved leads become contacts.',
+    fields: [{ key: 'token', label: 'Service Key', type: 'password', placeholder: 'pat-na1-...' }],
+    help: 'In HubSpot: Development > Keys > Service Keys > Create, with the crm.objects.contacts.read and .write scopes.',
+  },
+  {
+    id: 'gmail', icon: Inbox, name: 'Gmail',
+    detail: 'Reads unread email, saves reply drafts, and sends replies you choose to send.',
+    fields: [{ key: 'email', label: 'Gmail address', type: 'email', placeholder: 'you@gmail.com' },
+      { key: 'app_password', label: 'App password', type: 'password', placeholder: '16 letters' }],
+    help: 'Turn on 2-Step Verification, then create an app password at myaccount.google.com/apppasswords. Your normal password won\'t work.',
+  },
+  {
+    id: 'webhook', icon: Webhook, name: 'Webhook (Zapier · n8n · Make)',
+    detail: 'Approved documents are sent here. Workflows can call their own URLs too.',
+    fields: [{ key: 'url', label: 'Webhook URL', placeholder: 'https://hooks.zapier.com/hooks/catch/...' }],
+    help: 'A test event {"event": "flowmancer.test"} is sent when you connect.',
+  },
+];
+
+function StatusDot({ on, text }: { on: boolean; text: string }) {
+  return (
+    <span className={cn('flex items-center gap-1.5 text-xs font-medium', on ? 'text-jade' : 'text-fog')}>
+      <span className={cn('h-1.5 w-1.5 rounded-full bg-current', on && 'animate-blink')} aria-hidden />{text}
+    </span>
+  );
+}
+
+function Card({ icon: Icon, on, status, children }: {
+  icon: typeof Globe; on: boolean; status: string; children: React.ReactNode;
 }) {
   return (
     <motion.div variants={rise} className={cn('glass relative overflow-hidden !rounded-[22px] p-5', on && 'border-crimson-400/25')}>
@@ -21,14 +66,83 @@ function Connection({ icon: Icon, name, on, detail, setting }: {
         <span className={cn('grid h-11 w-11 place-items-center rounded-2xl border', on ? 'border-crimson-400/40 bg-crimson/25 text-blush' : 'border-white/[0.07] bg-white/[0.03] text-fog')}>
           <Icon className="h-5 w-5" aria-hidden />
         </span>
-        <span className={cn('flex items-center gap-1.5 text-xs font-medium', on ? 'text-jade' : 'text-fog')}>
-          <span className={cn('h-1.5 w-1.5 rounded-full bg-current', on && 'animate-blink')} aria-hidden />{on ? 'Connected' : 'Not set up'}
-        </span>
+        <StatusDot on={on} text={status} />
       </div>
-      <p className="relative mt-4 font-semibold text-bone">{name}</p>
-      <p className="relative mt-1 text-sm text-fog">{detail}</p>
-      {!on && setting && <p className="relative mt-3 font-mono text-[11px] text-ash">backend/.env → {setting}</p>}
+      <div className="relative">{children}</div>
     </motion.div>
+  );
+}
+
+function ConnectCard({ def, status, canConnect, onChanged }: {
+  def: ProviderDef; status: ConnectionStatus; canConnect: boolean; onChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<'connect' | 'disconnect' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+  const own = status.source === 'account';
+
+  const act = async (kind: 'connect' | 'disconnect') => {
+    if (kind === 'disconnect' && !window.confirm(`Disconnect ${def.name}? Actions that use it will be skipped.`)) return;
+    setBusy(kind);
+    setError(null);
+    try {
+      if (kind === 'connect') await connectionsApi.connect(def.id, values);
+      else await connectionsApi.disconnect(def.id);
+      toast({ tone: 'success', title: kind === 'connect' ? `${def.name} connected` : `${def.name} disconnected` });
+      setOpen(false);
+      setValues({});
+      onChanged();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card icon={def.icon} on={status.configured}
+      status={own ? 'Connected' : status.source === 'server' ? 'Set on the server' : 'Not connected'}>
+      <p className="mt-4 font-semibold text-bone">{def.name}</p>
+      <p className="mt-1 text-sm text-fog">{def.detail}</p>
+      {status.configured && status.label && (
+        <p className="mt-2 font-mono text-[11px] text-bone/80">
+          {status.label}{own && status.updated_at && <span className="text-ash"> · {timeAgo(status.updated_at)}</span>}
+        </p>
+      )}
+      {canConnect && !open && (
+        <div className="mt-4 flex gap-2">
+          <button type="button" onClick={() => setOpen(true)} className="btn-ghost !py-1.5 text-xs">
+            {own ? 'Change' : 'Connect'}
+          </button>
+          {own && (
+            <button type="button" onClick={() => act('disconnect')} disabled={!!busy} className="btn-quiet !py-1.5 text-xs">
+              {busy === 'disconnect' && <Spinner className="h-3.5 w-3.5" />}Disconnect
+            </button>
+          )}
+        </div>
+      )}
+      {open && (
+        <form onSubmit={(e) => { e.preventDefault(); act('connect'); }} className="mt-4 space-y-3">
+          {def.fields.map((f) => (
+            <Field key={f.key} label={f.label} htmlFor={`${def.id}-${f.key}`}>
+              <input id={`${def.id}-${f.key}`} type={f.type || 'text'} required autoComplete="off" placeholder={f.placeholder}
+                value={values[f.key] || ''} onChange={(e) => setValues({ ...values, [f.key]: e.target.value })} className="field" />
+            </Field>
+          ))}
+          <p className="text-xs leading-relaxed text-fog">{def.help} Saved encrypted, and used only for your account.</p>
+          <ErrorBanner message={error} />
+          <div className="flex gap-2">
+            <button type="submit" disabled={!!busy} className="btn-primary !py-2 text-sm">
+              {busy === 'connect' && <Spinner className="h-4 w-4 text-white" />}{busy === 'connect' ? 'Testing...' : 'Test and connect'}
+            </button>
+            <button type="button" onClick={() => { setOpen(false); setError(null); }} className="btn-quiet !py-2 text-sm">Cancel</button>
+          </div>
+        </form>
+      )}
+      {!open && error && <div className="mt-3"><ErrorBanner message={error} /></div>}
+    </Card>
   );
 }
 
@@ -91,7 +205,13 @@ export default function IntegrationsPage() {
   return (
     <div className="space-y-8 pt-4">
       <PageHeader eyebrow="Integrations" title="Wired" accent="in."
-        subtitle="Set these in backend/.env and restart the backend. Anything not set up is skipped, never broken." />
+        subtitle="Connect your own Slack, HubSpot and Gmail. Each account uses only its own connections. Anything not connected is skipped, never broken." />
+      {!info.can_connect && (
+        <p className="rounded-2xl border border-amber/25 bg-amber/[0.06] p-4 text-sm text-bone/90">
+          This is the shared demo account, so connecting integrations is turned off and actions that need them are
+          recorded as skipped. Create your own free account to connect your Slack, HubSpot and Gmail.
+        </p>
+      )}
       <ErrorBanner message={error} />
 
       <motion.div variants={stagger(0.05)} initial="hidden" animate="show" className="space-y-6">
@@ -114,29 +234,27 @@ export default function IntegrationsPage() {
           </div>
         </motion.div>
 
-        <motion.div variants={stagger(0.05)} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <Connection icon={Globe} name="Lead research" on={info.research.enabled}
-            detail={info.research.enabled ? info.research.engine : 'Turned off'} setting="RESEARCH_ENABLED=true" />
-          <Connection icon={MessageSquare} name="Slack" on={info.slack.configured}
-            detail="Hot leads, urgent emails and approved documents are posted." setting="SLACK_WEBHOOK_URL" />
-          <Connection icon={Building2} name="HubSpot CRM" on={info.hubspot.configured}
-            detail="Approved leads become contacts." setting="HUBSPOT_ACCESS_TOKEN" />
-          <Connection icon={Webhook} name="Webhook (Zapier · n8n · Make)" on={info.webhook.configured}
-            detail="Approved documents are sent here. Workflows can call their own URLs too." setting="WEBHOOK_URL" />
-          <Connection icon={Inbox} name="Mailbox (IMAP)" on={m.configured}
-            detail={m.configured ? `${m.user} on ${m.host}` : 'Read unread email and save reply drafts.'} setting="IMAP_HOST, IMAP_USER, IMAP_PASSWORD" />
+        <motion.div variants={stagger(0.05)} className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {PROVIDERS.map((def) => (
+            <ConnectCard key={def.id} def={def} status={info[def.id]} canConnect={info.can_connect} onChanged={refresh} />
+          ))}
+          <Card icon={Globe} on={info.research.enabled} status={info.research.enabled ? 'On' : 'Off'}>
+            <p className="mt-4 font-semibold text-bone">Lead research</p>
+            <p className="mt-1 text-sm text-fog">{info.research.enabled ? info.research.engine : 'Turned off on this server'}</p>
+          </Card>
         </motion.div>
 
         <div className="grid gap-6 xl:grid-cols-2">
           <Panel eyebrow="Trigger" title="Inbox" actions={
-            <button type="button" onClick={poll} disabled={!m.configured || !m.is_owner || polling} className="btn-ghost !py-1.5 text-xs">
+            <button type="button" onClick={poll} disabled={!m.configured || polling} className="btn-ghost !py-1.5 text-xs">
               {polling ? <Spinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden />} Check now
             </button>
           }>
             <div className="space-y-2 text-sm text-fog">
-              <p>Unread mail in <span className="font-mono text-bone">{m.folder}</span> is processed and marked read. Approved replies go to your Drafts folder; nothing is sent.</p>
-              {m.configured && !m.is_owner && <p className="text-amber">This inbox belongs to {m.owner_email}. Only that account can check it.</p>}
-              {m.configured && m.is_owner && <p>Emails from this inbox are added to <span className="text-bone">your</span> account.</p>}
+              <p>Unread mail in your connected Gmail is processed and marked read. Approved replies are saved to Drafts, or sent if you choose Send now.</p>
+              {m.configured
+                ? <p>Reading <span className="text-bone">{m.user}</span>{m.source === 'server' && ' (the server\'s mailbox, set in backend/.env)'}.</p>
+                : <p>Connect Gmail above to use it.</p>}
               <p>Auto-check: <span className="text-bone">{m.auto_poll_seconds > 0 ? `every ${m.auto_poll_seconds}s` : 'off'}</span>{m.last_poll && <> · last check {timeAgo(m.last_poll)}, {m.last_count} email(s)</>}</p>
               {m.last_error && <p className="text-coral">Last error: {m.last_error}</p>}
             </div>
@@ -157,7 +275,7 @@ export default function IntegrationsPage() {
         </div>
 
         <Panel eyebrow="Your account" title="Trigger key" actions={
-          <button type="button" onClick={rotate} disabled={rotating} className="btn-ghost !py-1.5 text-xs">
+          <button type="button" onClick={rotate} disabled={rotating || !info.can_connect} className="btn-ghost !py-1.5 text-xs">
             {rotating ? <Spinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden />} New key
           </button>
         }>

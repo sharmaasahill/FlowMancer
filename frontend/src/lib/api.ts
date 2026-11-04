@@ -4,8 +4,8 @@
  */
 import axios, { AxiosError } from 'axios';
 import type {
-  Approval, AuthConfig, AuthSession, ChatReply, ChatTurn, Integrations, Kind, KnowledgeDocument, Mode, Run, RunList,
-  Stats, UsageReport, User, Workflow, WorkflowExecution, WorkflowGraph,
+  Approval, AuthConfig, AuthSession, ChatReply, ChatTurn, ConnectionStatus, Integrations, Kind, KnowledgeDocument, Mode,
+  Provider, Run, RunList, Stats, UsageReport, User, Workflow, WorkflowExecution, WorkflowGraph,
 } from '@/types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -38,7 +38,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(undefined, (error) => {
   const url: string = error?.config?.url || '';
-  const signingIn = url.startsWith('/api/auth/login') || url.startsWith('/api/auth/google');
+  const signingIn = url.startsWith('/api/auth/login') || url.startsWith('/api/auth/google') || url.startsWith('/api/auth/demo');
   if (error instanceof AxiosError && error.response?.status === 401 && !signingIn) {
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   }
@@ -71,7 +71,13 @@ export const authApi = {
   google: (accessToken: string) => api.post<AuthSession>('/api/auth/google', { access_token: accessToken }).then((r) => r.data),
   register: (name: string, email: string, password: string) =>
     api.post<AuthSession>('/api/auth/register', { name, email, password }).then((r) => r.data),
+  demo: () => api.post<AuthSession>('/api/auth/demo').then((r) => r.data),
   me: () => api.get<User>('/api/auth/me').then((r) => r.data),
+  updateMe: (name: string) => api.patch<User>('/api/auth/me', { name }).then((r) => r.data),
+  changePassword: (current_password: string | null, new_password: string) =>
+    api.post<User>('/api/auth/password', { current_password, new_password }).then((r) => r.data),
+  deleteAccount: (confirm_email: string, password: string | null) =>
+    api.delete('/api/auth/me', { data: { confirm_email, password } }),
   rotateTriggerKey: () => api.post<User>('/api/auth/trigger-key/rotate').then((r) => r.data),
 };
 
@@ -90,8 +96,21 @@ export const runsApi = {
     form.append('mode', mode);
     return api.post<Run>('/api/use-cases/process-document/upload', form).then((r) => r.data);
   },
-  list: (params: { kind?: string; status?: string; mode?: string; source?: string; limit?: number; offset?: number }) =>
+  list: (params: RunFilters & { limit?: number; offset?: number }) =>
     api.get<RunList>('/api/runs/', { params }).then((r) => r.data),
+  /** CSV of the filtered history (fetched with the auth header, then saved by the browser). */
+  exportCsv: async (params: RunFilters) => {
+    const r = await api.get<Blob>('/api/runs/export', { params, responseType: 'blob' });
+    const name = /filename="([^"]+)"/.exec(r.headers['content-disposition'] || '')?.[1] || 'flowmancer-runs.csv';
+    const url = URL.createObjectURL(r.data);
+    const a = Object.assign(document.createElement('a'), { href: url, download: name });
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  feedback: (id: number, field: string, correct: string, note: string) =>
+    api.post<Run>(`/api/runs/${id}/feedback`, { field, correct: correct || null, note: note || null }).then((r) => r.data),
+  rerun: (id: number, mode: Mode = 'crew') =>
+    api.post<Run>(`/api/runs/${id}/rerun`, null, { params: { mode } }).then((r) => r.data),
   get: (id: number) => api.get<Run>(`/api/runs/${id}`).then((r) => r.data),
   approvals: (id: number) => api.get<Approval[]>(`/api/runs/${id}/approvals`).then((r) => r.data),
   eventsUrl: (id: number) => `${API_BASE_URL}/api/runs/${id}/events`,
@@ -99,8 +118,8 @@ export const runsApi = {
 
 export const approvalsApi = {
   list: (status?: string) => api.get<Approval[]>('/api/approvals/', { params: { status } }).then((r) => r.data),
-  approve: (id: number, payload?: Record<string, any>, note?: string) =>
-    api.post<Approval>(`/api/approvals/${id}/approve`, { payload, note }).then((r) => r.data),
+  approve: (id: number, payload?: Record<string, any>, note?: string, delivery: 'draft' | 'send' = 'draft') =>
+    api.post<Approval>(`/api/approvals/${id}/approve`, { payload, note, delivery }).then((r) => r.data),
   reject: (id: number, note?: string) => api.post<Approval>(`/api/approvals/${id}/reject`, { note }).then((r) => r.data),
 };
 
@@ -137,6 +156,15 @@ export const systemApi = {
   integrations: () => api.get<Integrations>('/api/integrations').then((r) => r.data),
   pollInbox: () => api.post<{ fetched: number; dispatched: any[] }>('/api/triggers/inbox/poll').then((r) => r.data),
   usage: (days: number) => api.get<UsageReport>('/api/usage', { params: { days } }).then((r) => r.data),
+  loadSample: () => api.post<{ runs: number }>('/api/sample-data').then((r) => r.data),
 };
+
+export const connectionsApi = {
+  connect: (provider: Provider, fields: Record<string, string>) =>
+    api.put<ConnectionStatus>(`/api/connections/${provider}`, fields).then((r) => r.data),
+  disconnect: (provider: Provider) => api.delete<ConnectionStatus>(`/api/connections/${provider}`).then((r) => r.data),
+};
+
+export interface RunFilters { kind?: string; status?: string; mode?: string; source?: string; q?: string }
 
 export default api;

@@ -6,8 +6,8 @@ Public (identified by the account's trigger key, ?key=... or the X-FlowMancer-Ke
   POST /api/triggers/webhook/{workflow}   any JSON -> run that workflow
 
 Signed in:
-  GET  /api/triggers/inbox                inbox status
-  POST /api/triggers/inbox/poll           read unread emails now (inbox owner only)
+  GET  /api/triggers/inbox                your inbox status
+  POST /api/triggers/inbox/poll           read your connected Gmail's unread emails now
 """
 from typing import Optional
 
@@ -16,7 +16,6 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user
-from app.core.config import settings
 from app.core.database import get_db
 from app.models import User, Workflow
 from app.schemas import LeadInput
@@ -123,23 +122,16 @@ async def workflow_webhook(workflow_id: int, request: Request, db: Session = Dep
     return {"status": "accepted", "workflow_execution_id": ex.id}
 
 
-def _is_inbox_owner(db: Session, user: User) -> bool:
-    owner = accounts.inbox_owner(db)
-    return owner is not None and owner.id == user.id
-
-
 @router.get("/inbox")
 def inbox_status(db: Session = Depends(get_db), user: User = Depends(current_user)):
-    return {**inbox.status(), "is_owner": _is_inbox_owner(db, user)}
+    return inbox.status(db, user)
 
 
 @router.post("/inbox/poll")
 def poll_inbox(db: Session = Depends(get_db), user: User = Depends(current_user)):
-    if not settings.imap_configured:
-        raise HTTPException(status_code=400, detail="Inbox not configured: set IMAP_HOST, IMAP_USER and IMAP_PASSWORD")
-    if not _is_inbox_owner(db, user):
-        raise HTTPException(status_code=403, detail="The inbox belongs to another account (INBOX_OWNER_EMAIL).")
-    result = inbox.poll_once()
+    if not inbox.status(db, user)["configured"]:
+        raise HTTPException(status_code=400, detail="Connect Gmail on the Integrations page first.")
+    result = inbox.poll_once(user.id)
     if result["status"] == "error":
         raise HTTPException(status_code=502, detail=result["detail"])
     return result

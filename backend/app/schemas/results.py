@@ -51,14 +51,17 @@ class LeadResult(BaseModel):
 
 
 class EmailResult(BaseModel):
-    summary: str = Field(description="One sentence: who is writing and what they want")
+    summary: str = Field(description="One sentence in English: who is writing and what they want")
     category: Literal["support", "sales", "billing", "partnership", "spam", "other"]
     sentiment: Literal["positive", "neutral", "negative"]
     priority: Priority
     action_required: bool
     assigned_team: str = Field(description="Team that should handle it, e.g. 'Technical support', 'Billing'")
     tags: List[str] = Field(default_factory=list)
-    draft_reply: str = Field(description="Complete, polite reply ready to send. Empty only for spam.")
+    language: str = Field(default="English", description="Language the email is written in, e.g. English, Hindi, "
+                                                         "Hinglish, Spanish")
+    draft_reply: str = Field(description="Complete, polite reply ready to send, in the same language as the email. "
+                                         "Empty only for spam.")
 
 
 class ExtractedField(BaseModel):

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Users2 } from 'lucide-react';
 import Orb from '@/components/Orb';
 import RunResult from '@/components/RunResult';
 import RunSteps from '@/components/RunSteps';
-import { ErrorBanner, Loading, Panel, stagger, StatusBadge } from '@/components/ui';
+import { useToast } from '@/components/Toast';
+import { ErrorBanner, Loading, Panel, Spinner, stagger, StatusBadge } from '@/components/ui';
 import { errorMessage, runsApi } from '@/lib/api';
 import { useRunStream } from '@/lib/useRunStream';
 import type { Approval, Run } from '@/types';
@@ -20,6 +21,19 @@ export default function RunDetailPage() {
   const [initial, setInitial] = useState<Run | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [rerunning, setRerunning] = useState(false);
+  const router = useRouter();
+  const toast = useToast();
+
+  const rerun = async () => {
+    setRerunning(true);
+    try {
+      router.push(`/history/${(await runsApi.rerun(id, 'crew')).id}`);
+    } catch (e) {
+      toast({ tone: 'error', title: 'Could not re-run', detail: errorMessage(e) });
+      setRerunning(false);
+    }
+  };
 
   useEffect(() => {
     runsApi.get(id).then(setInitial).catch((e) => setError(errorMessage(e)));
@@ -53,6 +67,12 @@ export default function RunDetailPage() {
           </p>
         </div>
         <StatusBadge status={run.status} />
+        {finished && (
+          <button type="button" onClick={rerun} disabled={rerunning} className="btn-ghost !py-2"
+            title="Process the same input again with a team of agents (slower, more thorough)">
+            {rerunning ? <Spinner className="h-4 w-4" /> : <Users2 className="h-4 w-4" aria-hidden />}Re-run in crew mode
+          </button>
+        )}
       </header>
 
       <motion.div variants={stagger()} initial="hidden" animate="show" className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">

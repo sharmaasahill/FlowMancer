@@ -24,10 +24,10 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.database import session_scope
-from app.integrations import append_draft, post_slack, post_webhook, upsert_contact
 from app.models import Workflow, WorkflowExecution
 from app.schemas import DocumentInput, EmailInput, LeadInput
 from app.services import approvals
+from app.services import connections
 from app.services import runs as runs_service
 
 NODE_TYPES = {"trigger", "ai", "condition", "action"}
@@ -181,6 +181,14 @@ class _Runner:
         self.workflow = workflow
         self.ctx: Dict[str, Any] = {"input": input_data, "result": None, "kind": None, "run_id": None}
         self.logs: List[Dict] = []
+        self._integ: Optional[connections.UserIntegrations] = None
+
+    @property
+    def integ(self) -> connections.UserIntegrations:
+        """The account's own integrations (looked up once per execution)."""
+        if self._integ is None:
+            self._integ = connections.for_user(self.user_id)
+        return self._integ
 
     def save(self, **fields):
         with session_scope() as db:
@@ -227,19 +235,19 @@ class _Runner:
         data = self.ctx.get("ai_input") or self.ctx["input"]
         if action == "slack":
             text = render(d.get("text") or "FlowMancer: {kind} processed", {**self.ctx, "kind": kind})
-            res = post_slack(text)
+            res = self.integ.slack(text)
         elif action == "webhook":
-            res = post_webhook({"workflow": self.workflow, "input": self.ctx["input"],
-                                "kind": kind, "result": result}, d["url"])
+            res = self.integ.webhook({"workflow": self.workflow, "input": self.ctx["input"],
+                                "kind": kind, "result": result}, d.get("url"))
         elif action == "crm":
             if kind != "lead":
                 raise WorkflowError("CRM action needs a lead AI step before it")
-            res = upsert_contact(approvals.crm_contact_payload(data, result))
+            res = self.integ.crm(approvals.crm_contact_payload(data, result))
         elif action == "email_draft":
             if kind != "email":
                 raise WorkflowError("Email draft action needs an email AI step before it")
             p = approvals.email_reply_payload(data, result)
-            res = append_draft(p["to"], p["subject"], p["body"], p["in_reply_to"])
+            res = self.integ.draft(p["to"], p["subject"], p["body"], p["in_reply_to"])
         else:  # approval
             target = d["approval_action"]
             if target == "slack_message":

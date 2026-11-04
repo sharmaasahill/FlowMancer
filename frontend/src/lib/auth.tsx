@@ -14,6 +14,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signInWithGoogle: (accessToken: string) => Promise<void>;
+  signInDemo: () => Promise<void>;
   signOut: () => void;
   retry: () => void;
   setUser: (u: User) => void;
@@ -21,7 +22,7 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState>({
   status: 'loading', user: null,
-  signIn: async () => {}, signUp: async () => {}, signInWithGoogle: async () => {}, signOut: () => {},
+  signIn: async () => {}, signUp: async () => {}, signInWithGoogle: async () => {}, signInDemo: async () => {}, signOut: () => {},
   retry: () => {}, setUser: () => {},
 });
 
@@ -64,9 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = useCallback(async (name: string, email: string, password: string) =>
     start(await authApi.register(name, email, password)), [start]);
   const signInWithGoogle = useCallback(async (accessToken: string) => start(await authApi.google(accessToken)), [start]);
+  const signInDemo = useCallback(async () => start(await authApi.demo()), [start]);
 
   return (
-    <AuthContext.Provider value={{ status, user, signIn, signUp, signInWithGoogle, signOut, retry: restore, setUser }}>
+    <AuthContext.Provider value={{ status, user, signIn, signUp, signInWithGoogle, signInDemo, signOut, retry: restore, setUser }}>
       {children}
     </AuthContext.Provider>
   );

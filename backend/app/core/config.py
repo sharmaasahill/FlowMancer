@@ -31,6 +31,18 @@ class Settings(BaseSettings):
     # "Sign in with Google": OAuth client ID from Google Cloud Console (empty = button hidden)
     GOOGLE_CLIENT_ID: str = ""
 
+    # ---------- Public demo account ----------
+    # "Try the demo" signs visitors into this shared, sandboxed account. Its data is reset every night,
+    # it can't connect integrations or change its settings, and it has a daily run limit.
+    DEMO_ENABLED: bool = True
+    DEMO_EMAIL: str = "demo@flowmancer.dev"
+    DEMO_PASSWORD: str = "flowmancer@demo"
+    DEMO_DAILY_RUN_LIMIT: int = 30
+    # Runs per day for every other account (0 = no limit)
+    DAILY_RUN_LIMIT: int = 0
+    # What "a day" means for daily limits and the nightly demo reset, in minutes from UTC (330 = India)
+    LOCAL_UTC_OFFSET_MINUTES: int = 330
+
     # ---------- AI ----------
     # "gemini" (Google, free tier) or "ollama" (local, offline)
     AI_PROVIDER: str = "gemini"
@@ -76,7 +88,12 @@ class Settings(BaseSettings):
     # Account that owns emails from this inbox. Empty = the first account created.
     INBOX_OWNER_EMAIL: str = ""
 
+    # Sending approved replies (the "Send" option). Empty = derived from IMAP_HOST (imap.x -> smtp.x)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 465
     # ---------- Actions ----------
+    # Server-level integrations below belong to the server owner (INBOX_OWNER_EMAIL, or the first account).
+    # Every other account connects its own on the Integrations page.
     SLACK_WEBHOOK_URL: str = ""
     HUBSPOT_ACCESS_TOKEN: str = ""
     WEBHOOK_URL: str = ""  # default outbound webhook (Zapier, n8n, Make...)

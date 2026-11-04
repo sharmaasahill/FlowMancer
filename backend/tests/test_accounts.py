@@ -66,7 +66,7 @@ def test_wrong_password_and_throttling(anon):
 
 def test_signups_can_be_closed(anon, monkeypatch):
     monkeypatch.setattr(settings, "ALLOW_SIGNUPS", False)
-    assert anon.get("/api/auth/config").json() == {"signups_open": True, "has_users": False, "google_client_id": None}
+    assert anon.get("/api/auth/config").json() == {"signups_open": True, "has_users": False, "google_client_id": None, "demo_enabled": False}
     sign_up(anon, email="first@example.com")  # the first account is always allowed
     r = anon.post("/api/auth/register", json={"email": "second@example.com", "name": "x", "password": "long-enough-1"})
     assert r.status_code == 403

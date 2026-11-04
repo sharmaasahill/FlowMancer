@@ -34,7 +34,7 @@
 
 FlowMancer researches a sales lead on the web, triages an email against your own policies, or checks an invoice. It returns a structured verdict (scores, categories, totals) and proposes an action: a CRM contact, a reply draft, a Finance sign-off. Nothing is sent until someone approves it.
 
-**Try it without signing up:** sign in at [flowmancer.vercel.app/login](https://flowmancer.vercel.app/login) with `demo@flowmancer.dev` / `flowmancer@demo`. The demo account already has sample leads, emails and invoices. Please don't enter real customer data.
+**Try it without signing up:** press **Try the demo** on [flowmancer.vercel.app](https://flowmancer.vercel.app), or sign in with `demo@flowmancer.dev` / `flowmancer@demo`. The shared demo account holds three days of sample leads, emails and invoices for a made-up Indian software company. It resets every night at midnight (IST), allows 30 runs a day, and can't connect integrations. Please don't enter real customer data.
 
 The [live demo](https://flowmancer.vercel.app) runs the frontend on Vercel and the API on Render's free plan, so the first visit after a quiet spell can take up to a minute while the server wakes up.
 
@@ -84,15 +84,18 @@ All screenshots are from a running copy of FlowMancer with real Gemini results, 
 - **Live progress.** Every step, including each crew agent, streams to the browser over Server-Sent Events.
 - **Real research.** DuckDuckGo search (no key needed) plus the company website taken from the email domain. Sources are stored and shown, and private network addresses are never fetched.
 - **Knowledge base (RAG).** Upload pricing, policies or FAQs. They're chunked, embedded locally with ChromaDB and quoted in replies.
-- **Human approval queue.** Edit a proposed reply or contact, then approve or reject it.
+- **Human approval queue.** Edit a proposed reply or contact, then approve or reject it, one at a time or several at once. Replies become Gmail drafts by default; teams that trust it can choose **Send now** for a reply, which sends it over SMTP with the same app password.
+- **Replies in the customer's language.** A Hindi, Spanish or Hinglish email gets its reply in the same language. The summary and fields stay in English, and the detected language is shown on the result.
+- **History tools.** Search every input and result by text, export the (filtered) history to CSV, report a wrong field with **This is wrong**, and **Re-run in crew mode** on any result.
 - **Ask FlowMancer assistant.** A chat drawer (top bar, or `Ctrl+J`) that answers questions using tools: search runs, open one run, list approvals, search the knowledge base, show stats, and draft a reply. A draft only goes into the approval queue. The assistant can't send anything, and it only sees the signed-in account's data.
-- **Accounts.** Email and password, or **Sign in with Google**. Each account has its own runs, workflows, approvals, knowledge base and usage. Passwords are hashed with scrypt, sessions use signed tokens (JWT), and repeated failed sign-ins are blocked for 15 minutes. For Google sign-in, the server asks Google to confirm that the token is valid and was issued to FlowMancer's client ID, and links the account to an existing one with the same verified email.
+- **Accounts.** Email and password, or **Sign in with Google**. Each account has its own runs, workflows, approvals, knowledge base and usage. Passwords are hashed with scrypt, sessions use signed tokens (JWT), and repeated failed sign-ins are blocked for 15 minutes. For Google sign-in, the server asks Google to confirm that the token is valid and was issued to FlowMancer's client ID, and links the account to an existing one with the same verified email. A **Settings** page changes the name or password and deletes the account with all its data.
+- **Demo account and sample data.** **Try the demo** signs straight into a shared, sandboxed account with a daily run limit, reset every night by a background job. New accounts get a welcome with **Load sample data**, which adds the same sample business (clearly labelled, workflows switched off).
 - **Usage and cost page.** Every model request is recorded: feature, model, input and output tokens, response time, and whether it was rate-limited or answered by the backup model. The page shows totals, tokens per day, cost per lead/email/document, and an estimate at Google's paid prices.
 - **Triggers:** website form webhook, IMAP inbox polling, per-workflow webhooks, file upload.
-- **Actions:** Slack, HubSpot, mailbox reply drafts, and outbound webhooks for Zapier, n8n and Make.
+- **Actions:** Slack, HubSpot, Gmail drafts or sent replies, and outbound webhooks for Zapier, n8n and Make. Each account connects its own on the Integrations page. Credentials are tested live before they're saved, then stored encrypted (Fernet, key derived from `JWT_SECRET`).
 - **Visual workflow builder.** Drag-and-drop trigger, AI, condition and action steps, with templates. Graphs are validated on save (one trigger, no loops), and a test run lights up the path it took.
 - **Dashboard.** Live counts, activity charts, an AI status panel and full run history.
-- **Tests.** 120 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
+- **Tests.** 127 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
 - **Accuracy test set in CI.** 100 labelled cases scored against the real model, with a Markdown report. It runs weekly, on demand, and on pull requests that change prompts or the AI code.
 
 ## Tech stack
@@ -174,19 +177,23 @@ Everything lives in `backend/.env`. Only `GEMINI_API_KEY` is required. [`backend
 | `GEMINI_FALLBACK_MODEL` | Used when the main model is busy (empty = none) | `gemini-3.1-flash-lite` |
 | `OLLAMA_FALLBACK` | Use the local Ollama model as a last resort | `false` |
 | `AI_PROVIDER` | `gemini`, or `ollama` to run fully offline | `gemini` |
-| `SLACK_WEBHOOK_URL` | [Slack incoming webhook](https://api.slack.com/messaging/webhooks) | - |
+| `SLACK_WEBHOOK_URL` | [Slack incoming webhook](https://api.slack.com/messaging/webhooks) for the server owner | - |
 | `HUBSPOT_ACCESS_TOKEN` | HubSpot Service Key (Development → Keys → Service keys) with `crm.objects.contacts.read` and `.write` | - |
 | `WEBHOOK_URL` | Default outbound webhook (Zapier / n8n / Make) | - |
 | `IMAP_HOST` / `IMAP_USER` / `IMAP_PASSWORD` | Inbox trigger and reply drafts. Gmail: `imap.gmail.com` + an [App Password](https://myaccount.google.com/apppasswords) | - |
 | `JWT_SECRET` | Signs sign-in tokens. Empty = generated and saved in `backend/.flowmancer_secret`. Set 32+ random characters for Docker or a server | generated |
 | `ALLOW_SIGNUPS` | `false` stops new sign-ups (the first account is always allowed) | `true` |
-| `INBOX_OWNER_EMAIL` | Account that receives emails from the IMAP inbox | first account |
+| `INBOX_OWNER_EMAIL` | The server owner: uses the Slack, HubSpot, webhook and IMAP settings above | first account (never the demo) |
+| `SMTP_HOST` / `SMTP_PORT` | Sending approved replies for the server mailbox | from `IMAP_HOST`, `465` |
+| `DEMO_ENABLED` | Show **Try the demo** and keep the shared demo account (reset nightly) | `true` |
+| `DEMO_DAILY_RUN_LIMIT` / `DAILY_RUN_LIMIT` | Runs per day for the demo account / every other account (0 = no limit) | `30` / `0` |
+| `LOCAL_UTC_OFFSET_MINUTES` | Where "midnight" is for daily limits and the demo reset | `330` (IST) |
 | `GOOGLE_CLIENT_ID` | Shows the "Sign in with Google" button. See [Sign in with Google](#sign-in-with-google) | - |
 | `DATABASE_URL` | Database. Hosted Postgres URLs (`postgres://…` or `postgresql://…`) work as given | local SQLite file |
 | `CORS_ORIGINS` | Frontend addresses allowed to call the API: one address, a comma-separated list, or a JSON list | `localhost:3000` |
 | `AI_PRICES` | Paid-tier prices per 1M tokens for the Usage page's cost estimate | current Gemini prices |
 
-Integrations you haven't set up are reported as "skipped" and never break a run. The **Integrations** page shows what's connected. Slack, HubSpot and the inbox are set once per server and shared by all accounts.
+Integrations that aren't connected are reported as "skipped" and never break a run. Each account connects its own Slack, HubSpot, Gmail and webhook on the **Integrations** page. The ones in `backend/.env` apply only to the server owner, so a one-person setup keeps working without any clicks.
 
 ### Triggers and your trigger key
 
@@ -253,13 +260,18 @@ Every endpoint except sign-in, the public triggers and health checks needs an `A
 |----------|--------------|
 | `POST /api/auth/register` · `/api/auth/login` · `GET /api/auth/me` | Create an account, sign in (returns a token), current user |
 | `POST /api/auth/google` | Sign in with Google: send the access token from Google's sign-in popup (or an ID token) |
+| `POST /api/auth/demo` | Sign in to the shared demo account |
+| `PATCH /api/auth/me` · `POST /api/auth/password` · `DELETE /api/auth/me` | Settings: change name or password, delete the account |
 | `POST /api/auth/trigger-key/rotate` | Replace your trigger key |
 | `POST /api/assistant/chat` | Ask FlowMancer: send the conversation, get a reply plus the tools it used |
 | `POST /api/use-cases/qualify-lead` · `process-email` · `process-document` `?mode=quick\|crew` | Process and wait for the result |
 | `POST /api/use-cases/jobs/{lead\|email\|document}` | Start in the background; returns a run id |
 | `POST /api/use-cases/process-document/upload` | Upload a file (multipart) |
-| `GET /api/runs` · `/api/runs/{id}` · `/api/runs/{id}/events` | History, one run, live SSE stream |
-| `GET /api/approvals?status=pending` · `POST /api/approvals/{id}/approve\|reject` | Approval queue |
+| `GET /api/runs?q=` · `/api/runs/export` · `/api/runs/{id}` · `/api/runs/{id}/events` | History with text search, CSV export, one run, live SSE stream |
+| `POST /api/runs/{id}/feedback` · `/api/runs/{id}/rerun?mode=crew` | "This is wrong" report, re-run the same input |
+| `GET /api/approvals?status=pending` · `POST /api/approvals/{id}/approve\|reject` | Approval queue (`"delivery": "send"` sends a reply instead of drafting it) |
+| `GET /api/connections` · `PUT\|DELETE /api/connections/{slack\|hubspot\|gmail\|webhook}` | Your own integrations (tested, then stored encrypted) |
+| `POST /api/sample-data` | Fill an empty account with the sample business |
 | `GET\|POST\|DELETE /api/knowledge…` · `GET /api/knowledge/search?q=` | Knowledge base |
 | `POST /api/triggers/form?key=` · `/api/triggers/webhook/{workflow_id}?key=` · `/api/triggers/inbox/poll` | Triggers (form and webhook use your trigger key) |
 | `GET\|POST\|PUT\|DELETE /api/workflows…` · `POST /api/workflows/{id}/run` · `GET /api/executions/{id}` | Workflows |
@@ -301,14 +313,14 @@ Free hosts put the backend to sleep when it's idle. The first visit then takes u
 
 - **Accounts are basic.** There's no password reset, email verification or roles. Rate limiting covers failed sign-ins only. The sign-in token is kept in the browser's local storage, so a script injected into the page could read it.
 - **Costs are estimates.** They use the token counts each model reports and the prices in `AI_PRICES`, not Google's bill. Usage before this feature was added isn't counted.
-- **Integrations are per server, not per account.** Every account posts to the same Slack channel and HubSpot portal, and the inbox belongs to one account.
+- **Connections use keys, not OAuth.** Slack uses an incoming webhook URL, HubSpot a Service Key and Gmail an app password. OAuth would need registered apps, and Gmail's scopes need a Google security assessment.
 - **The accuracy test set is small** (100 cases written by the author). It catches regressions; it doesn't prove the model is right on real-world data.
 - **Research is best-effort.** Web results can be outdated or about a different company with the same name. Sources are shown so a person can check them.
 - **Scanned PDFs** (images) need OCR, which isn't included.
-- **The inbox uses IMAP app passwords,** not OAuth. Fetched emails are marked as read.
+- **The inbox uses IMAP app passwords,** not OAuth. Fetched emails are marked as read. **Send now** uses SMTP with the same app password.
 - **Run one backend process.** The knowledge store is a local folder (rebuilt from the database on start-up).
 - **Gmail only for the inbox.** Outlook.com no longer accepts app passwords for IMAP.
-- **Live testing so far.** Slack has been tested against a live workspace. Gmail sign-in and access to the Inbox and Drafts folders work with a real account. Fetching emails and saving drafts are covered by the test suite but not yet tested end to end on that account. The Docker setup and HubSpot are tested with fakes only. Google sign-in is tested with a fake token checker; the button itself renders on the sign-in page, but a real Google sign-in needs your own client ID.
+- **Live testing so far.** Slack has been tested against a live workspace. Gmail sign-in and access to the Inbox and Drafts folders work with a real account. Fetching emails and saving drafts are covered by the test suite but not yet tested end to end on that account. The Docker setup and HubSpot are tested with fakes only. Sending over SMTP and the per-account Connect forms are tested with fakes only. Google sign-in is tested with a fake token checker; the button itself renders on the sign-in page, but a real Google sign-in needs your own client ID.
 
 ## Author
 

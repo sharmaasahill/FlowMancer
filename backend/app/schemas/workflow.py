@@ -1,7 +1,7 @@
 """
 Pydantic schemas for API request/response validation
 """
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime, timezone
 from typing import Annotated
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, EmailStr
@@ -107,6 +107,7 @@ class RunResponse(BaseModel):
     actions: Optional[List[Dict[str, Any]]] = None
     ai_model: Optional[str] = None
     error: Optional[str] = None
+    feedback: Optional[List[Dict[str, Any]]] = None
     workflow_execution_id: Optional[int] = None
     created_at: Optional[UTCDateTime] = None
     completed_at: Optional[UTCDateTime] = None
@@ -156,6 +157,14 @@ class ApprovalResponse(BaseModel):
 class ApprovalDecision(BaseModel):
     payload: Optional[Dict[str, Any]] = Field(None, description="Edited payload; omitted fields keep their value")
     note: Optional[str] = Field(None, max_length=2000)
+    delivery: Literal["draft", "send"] = Field("draft", description="Email replies: save as a Gmail draft, or send")
+
+
+class RunFeedback(BaseModel):
+    """A "This is wrong" report on one field of a result."""
+    field: str = Field(..., min_length=1, max_length=60)
+    correct: Optional[str] = Field(None, max_length=500, description="What the right value is")
+    note: Optional[str] = Field(None, max_length=1000)
 
 
 # ---------- Knowledge ----------

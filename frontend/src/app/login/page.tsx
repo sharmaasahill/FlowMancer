@@ -18,7 +18,7 @@ function safeNext(next: string | null): string {
 }
 
 function LoginForm() {
-  const { status, signIn, signUp, signInWithGoogle } = useAuth();
+  const { status, signIn, signUp, signInWithGoogle, signInDemo } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get('next'));
@@ -27,6 +27,7 @@ function LoginForm() {
   const [signupsOpen, setSignupsOpen] = useState(true);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [demoEnabled, setDemoEnabled] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,16 +39,17 @@ function LoginForm() {
     authApi.config().then((c) => {
       setSignupsOpen(c.signups_open);
       setGoogleClientId(c.google_client_id);
+      setDemoEnabled(c.demo_enabled);
       if (!c.has_users) setMode('signup');
       else if (!c.signups_open) setMode('signin');
     }).catch(() => {}).finally(() => setConfigLoaded(true));
   }, []);
 
-  const google = async (accessToken: string) => {
+  const attempt = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError(null);
     try {
-      await signInWithGoogle(accessToken);
+      await fn();
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -58,17 +60,10 @@ function LoginForm() {
     if (status === 'signed-in') router.replace(next);
   }, [status, next, router]);
 
-  const submit = async (e: React.FormEvent) => {
+  const google = (accessToken: string) => attempt(() => signInWithGoogle(accessToken));
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      if (mode === 'signin') await signIn(email, password);
-      else await signUp(name, email, password);
-    } catch (err) {
-      setError(errorMessage(err));
-      setBusy(false);
-    }
+    attempt(() => (mode === 'signin' ? signIn(email, password) : signUp(name, email, password)));
   };
 
   return (
@@ -136,6 +131,11 @@ function LoginForm() {
             </button>
           </form>
           {!signupsOpen && <p className="mt-5 text-center text-xs text-fog">New accounts are turned off on this server.</p>}
+          {demoEnabled && (
+            <button type="button" onClick={() => attempt(signInDemo)} disabled={busy} className="btn-ghost mt-4 w-full !py-3 text-[15px]">
+              Try the demo, no sign-up needed
+            </button>
+          )}
         </div>
         {!configLoaded && <div className="mt-5 text-center"><WakingHint /></div>}
         <nav className="mt-6 flex justify-center gap-5 text-xs text-fog" aria-label="About FlowMancer">

@@ -1,4 +1,4 @@
-import { BookOpen, CheckSquare, Gauge, History, LayoutGrid, Plug, Sparkles, Workflow } from 'lucide-react';
+import { BookOpen, CheckSquare, Gauge, History, LayoutGrid, Plug, Settings, Sparkles, Workflow } from 'lucide-react';
 
 export const NAV = [
   {
@@ -21,7 +21,8 @@ export const NAV = [
     group: 'System',
     items: [
       { href: '/usage', label: 'Usage', icon: Gauge, keywords: 'cost tokens billing requests model quota' },
-      { href: '/integrations', label: 'Integrations', icon: Plug, keywords: 'slack hubspot inbox settings' },
+      { href: '/integrations', label: 'Integrations', icon: Plug, keywords: 'slack hubspot gmail inbox connect' },
+      { href: '/settings', label: 'Settings', icon: Settings, keywords: 'account name password delete profile' },
     ],
   },
 ];

@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ChevronRight, FileText, Mail, Users } from 'lucide-react';
-import { Empty, ErrorBanner, Loading, PageHeader, Segmented, StatusBadge } from '@/components/ui';
+import { ChevronRight, Download, FileText, Mail, Search, Users } from 'lucide-react';
+import { Empty, ErrorBanner, Loading, PageHeader, Segmented, Spinner, StatusBadge } from '@/components/ui';
 import { errorMessage, runsApi } from '@/lib/api';
 import type { RunList } from '@/types';
 import { formatDuration, summary, timeAgo, verdict } from '@/lib/utils';
@@ -18,12 +18,33 @@ export default function HistoryPage() {
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<RunList | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  const [q, setQ] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const filters = { kind: kind === 'all' ? undefined : kind, status: status || undefined, q: q || undefined };
+
+  // Search after a short pause in typing
+  useEffect(() => {
+    const t = setTimeout(() => { setQ(text.trim()); setOffset(0); }, 300);
+    return () => clearTimeout(t);
+  }, [text]);
 
   useEffect(() => {
-    runsApi.list({ kind: kind === 'all' ? undefined : kind, status: status || undefined, limit: PAGE, offset })
+    runsApi.list({ kind: kind === 'all' ? undefined : kind, status: status || undefined, q: q || undefined, limit: PAGE, offset })
       .then((d) => { setData(d); setError(null); })
       .catch((e) => setError(errorMessage(e)));
-  }, [kind, status, offset]);
+  }, [kind, status, q, offset]);
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      await runsApi.exportCsv(filters);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-8 pt-4">
@@ -41,12 +62,23 @@ export default function HistoryPage() {
           <option value="queued">Queued</option>
           <option value="failed">Failed</option>
         </select>
+        <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fog" aria-hidden />
+          <label htmlFor="hist-search" className="sr-only">Search history</label>
+          <input id="hist-search" type="search" value={text} onChange={(e) => setText(e.target.value)} maxLength={200}
+            placeholder="Search names, subjects, any text" className="field !rounded-full !py-2 !pl-10" />
+        </div>
         {data && <span className="ml-auto font-mono text-xs text-fog">{data.total} item{data.total === 1 ? '' : 's'}</span>}
+        <button type="button" onClick={exportCsv} disabled={exporting || !data?.total} className="btn-ghost !py-2"
+          title="Download these results as a spreadsheet (CSV)">
+          {exporting ? <Spinner className="h-4 w-4" /> : <Download className="h-4 w-4" aria-hidden />}Export CSV
+        </button>
       </div>
 
       <ErrorBanner message={error} />
       <div className="glass overflow-hidden p-2">
-        {!data ? <Loading /> : data.items.length === 0 ? <Empty title="Nothing here yet">Process something in the Studio and it shows up here.</Empty> : (
+        {!data ? <Loading /> : data.items.length === 0 ? (q ? <Empty title="No matches">Nothing in your history contains “{q}”.</Empty>
+          : <Empty title="Nothing here yet">Process something in the Studio and it shows up here.</Empty>) : (
           <ul>
             {data.items.map((r, i) => {
               const Icon = KIND_ICON[r.kind];
