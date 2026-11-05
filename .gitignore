@@ -29,5 +29,3 @@ logs/
 *.swp
 .DS_Store
 Thumbs.db
-# Personal study notes (not published)
-FLOWMANCER-GUIDE.md
