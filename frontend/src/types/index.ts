@@ -228,6 +228,8 @@ export interface Integrations {
   can_connect: boolean;
   mailbox: {
     configured: boolean;
+    /** Sending replies works here (some hosts block email ports) */
+    can_send: boolean;
     source: 'account' | 'server' | null;
     host: string | null;
     user: string | null;
@@ -272,6 +274,8 @@ export interface AuthConfig {
   has_users: boolean;
   google_client_id: string | null;
   demo_enabled: boolean;
+  /** The server can email password-reset links */
+  password_reset: boolean;
 }
 
 export interface AuthSession {

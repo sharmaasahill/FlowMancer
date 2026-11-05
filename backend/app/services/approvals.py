@@ -164,10 +164,15 @@ def approve(db: Session, approval: Approval, edits: Optional[Dict], note: Option
     if approval.status != "pending":
         raise ApprovalError(f"Approval is already {approval.status}")
     integ = connections.for_user(approval.user_id, db)
-    if delivery == "send" and (approval.action != "email_reply" or integ.mailbox is None):
-        raise ApprovalError("Sending needs an email reply and a connected Gmail. Connect Gmail on the "
-                            "Integrations page, or save it as a draft." if approval.action == "email_reply"
-                            else "Only email replies can be sent")
+    if delivery == "send":
+        if approval.action != "email_reply":
+            raise ApprovalError("Only email replies can be sent")
+        if integ.mailbox is None:
+            raise ApprovalError("Sending needs a connected Gmail. Connect Gmail on the Integrations page, "
+                                "or save it as a draft.")
+        if not integ.can_send():
+            raise ApprovalError("This server can't send email (its host blocks email ports and no mail relay "
+                                "is set up). Save it as a draft instead.")
     payload = dict(approval.payload or {})
     if edits:
         unknown = set(edits) - set(payload)

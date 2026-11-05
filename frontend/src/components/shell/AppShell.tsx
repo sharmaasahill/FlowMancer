@@ -23,7 +23,7 @@ const AssistantPanel = dynamic(() => import('@/components/assistant/AssistantPan
 const CommandPalette = dynamic(() => import('@/components/shell/CommandPalette'), { ssr: false });
 
 // Pages anyone can open without signing in: the landing page (exactly "/") and these sections
-const PUBLIC_PREFIXES = ['/login', '/about', '/privacy', '/terms'];
+const PUBLIC_PREFIXES = ['/login', '/reset-password', '/about', '/privacy', '/terms'];
 const isPublicPath = (pathname: string) => pathname === '/' || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
 function TopBar({ onSearch, onMenu }: { onSearch: () => void; onMenu: () => void }) {

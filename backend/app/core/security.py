@@ -74,10 +74,44 @@ def create_token(user_id: int) -> str:
 
 
 def decode_token(token: str) -> Optional[int]:
-    """User id from a valid token, or None."""
+    """User id from a valid sign-in token, or None."""
     try:
         payload = jwt.decode(token, jwt_secret(), algorithms=[_ALGORITHM], options={"require": ["exp", "sub"]})
+        if payload.get("purpose"):  # a token made for something else, never a sign-in
+            return None
         return int(payload["sub"])
+    except (jwt.InvalidTokenError, ValueError, KeyError):
+        return None
+
+
+# ---------- password-reset links ----------
+RESET_MINUTES = 30
+
+
+def _reset_key() -> str:
+    # A separate key, so a reset token can never pass as a sign-in token (or the other way round)
+    return hashlib.sha256(("flowmancer-password-reset:" + jwt_secret()).encode()).hexdigest()
+
+
+def password_stamp(password_hash: str) -> str:
+    """Changes whenever the password changes, so a reset link works only once."""
+    return hashlib.sha256(("stamp:" + (password_hash or "")).encode()).hexdigest()[:20]
+
+
+def create_reset_token(user_id: int, password_hash: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {"sub": str(user_id), "purpose": "password_reset", "stamp": password_stamp(password_hash),
+               "iat": now, "exp": now + timedelta(minutes=RESET_MINUTES)}
+    return jwt.encode(payload, _reset_key(), algorithm=_ALGORITHM)
+
+
+def read_reset_token(token: str) -> Optional[dict]:
+    """{"user_id", "stamp"} from a valid, unexpired reset token, or None."""
+    try:
+        payload = jwt.decode(token, _reset_key(), algorithms=[_ALGORITHM], options={"require": ["exp", "sub"]})
+        if payload.get("purpose") != "password_reset":
+            return None
+        return {"user_id": int(payload["sub"]), "stamp": str(payload.get("stamp", ""))}
     except (jwt.InvalidTokenError, ValueError, KeyError):
         return None
 

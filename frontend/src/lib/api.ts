@@ -38,7 +38,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(undefined, (error) => {
   const url: string = error?.config?.url || '';
-  const signingIn = url.startsWith('/api/auth/login') || url.startsWith('/api/auth/google') || url.startsWith('/api/auth/demo');
+  const signingIn = ['/api/auth/login', '/api/auth/google', '/api/auth/demo', '/api/auth/reset-password'].some((p) => url.startsWith(p));
   if (error instanceof AxiosError && error.response?.status === 401 && !signingIn) {
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   }
@@ -76,6 +76,10 @@ export const authApi = {
   updateMe: (name: string) => api.patch<User>('/api/auth/me', { name }).then((r) => r.data),
   changePassword: (current_password: string | null, new_password: string) =>
     api.post<User>('/api/auth/password', { current_password, new_password }).then((r) => r.data),
+  forgotPassword: (email: string) =>
+    api.post<{ detail: string }>('/api/auth/forgot-password', { email }).then((r) => r.data.detail),
+  resetPassword: (token: string, new_password: string) =>
+    api.post<{ detail: string }>('/api/auth/reset-password', { token, new_password }).then((r) => r.data.detail),
   deleteAccount: (confirm_email: string, password: string | null) =>
     api.delete('/api/auth/me', { data: { confirm_email, password } }),
   rotateTriggerKey: () => api.post<User>('/api/auth/trigger-key/rotate').then((r) => r.data),

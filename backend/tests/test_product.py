@@ -182,3 +182,84 @@ def test_feedback_and_rerun_in_crew_mode(client):
     assert new["mode"] == "crew" and new["source"] == "rerun" and new["input_data"] == run["input_data"]
     done = wait_for(lambda: (x := client.get(f"/api/runs/{new['id']}").json())["status"] == "completed" and x)
     assert done["output"]["lead_score"] == run["output"]["lead_score"]
+
+
+SERVER_MAILBOX = (("IMAP_HOST", "imap.gmail.com"), ("IMAP_USER", "me@gmail.com"), ("IMAP_PASSWORD", "pw"))
+
+
+def test_forgot_password_emails_a_one_time_link(anon, monkeypatch):
+    sent = []
+    monkeypatch.setattr(mail, "send_notice", lambda to, subject, text, html=None:
+                        sent.append({"to": to, "text": text}) or {"status": "success", "detail": "ok"})
+    assert anon.get("/api/auth/config").json()["password_reset"] is False  # nothing to send email with
+    assert anon.post("/api/auth/forgot-password", json={"email": "owner@test.com"}).status_code == 503
+    for key, value in SERVER_MAILBOX:
+        monkeypatch.setattr(settings, key, value)
+    assert anon.get("/api/auth/config").json()["password_reset"] is True
+    sign_up(anon)
+
+    # Same answer with or without an account; only a real account gets an email
+    unknown = anon.post("/api/auth/forgot-password", json={"email": "nobody@test.com"})
+    known = anon.post("/api/auth/forgot-password", json={"email": "Owner@test.com"},
+                      headers={"Origin": "https://evil.example"})
+    assert unknown.status_code == known.status_code == 200 and unknown.json() == known.json()
+    assert [m["to"] for m in sent] == ["owner@test.com"]
+    link = next(line for line in sent[0]["text"].splitlines() if "/reset-password?token=" in line)
+    assert link.startswith("http://localhost:3000/")  # an origin that isn't allowed is never used in the link
+    token = link.split("token=", 1)[1]
+
+    assert anon.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401  # not a sign-in
+    r = anon.post("/api/auth/reset-password", json={"token": token, "new_password": "brand-new-pass"})
+    assert r.status_code == 200
+    login = anon.post("/api/auth/login", json={"email": "owner@test.com", "password": "brand-new-pass"})
+    assert login.status_code == 200
+    again = anon.post("/api/auth/reset-password", json={"token": token, "new_password": "another-pass-1"})
+    assert again.status_code == 400 and "already used" in again.json()["detail"]  # works once
+    session = login.json()["token"]
+    assert anon.post("/api/auth/reset-password", json={"token": session, "new_password": "x" * 9}).status_code == 400
+
+    for _ in range(3):
+        anon.post("/api/auth/forgot-password", json={"email": "x@test.com"})
+    assert anon.post("/api/auth/forgot-password", json={"email": "x@test.com"}).status_code == 429
+
+
+def test_google_only_accounts_set_a_password_by_email_before_deleting(anon):
+    from app.core import security
+    from app.models import User
+    sign_up(anon)
+    with session_scope() as db:
+        user = User(email="g@test.com", name="G", password_hash="", google_sub="g-1",
+                    trigger_key=security.new_trigger_key())
+        db.add(user)
+        db.commit()
+        h = {"Authorization": f"Bearer {security.create_token(user.id)}"}
+    r = anon.post("/api/auth/password", json={"current_password": None, "new_password": "new-pass-123"}, headers=h)
+    assert r.status_code == 400 and "emailed link" in r.json()["detail"]
+    r = anon.request("DELETE", "/api/auth/me", json={"confirm_email": "g@test.com"}, headers=h)
+    assert r.status_code == 400 and "Set a password first" in r.json()["detail"]
+
+
+def test_sending_uses_the_relay_when_smtp_is_blocked(client, monkeypatch):
+    for key, value in SERVER_MAILBOX:
+        monkeypatch.setattr(settings, key, value)
+    monkeypatch.setattr(mail, "_smtp_ok", False)  # e.g. Render's free plan
+    client.post("/api/use-cases/process-email", json={**URGENT, "message_id": "<m1@x>"})
+    approval = client.get("/api/approvals/?status=pending").json()[0]
+    assert client.get("/api/integrations").json()["mailbox"]["can_send"] is False
+    r = client.post(f"/api/approvals/{approval['id']}/approve", json={"delivery": "send"})
+    assert r.status_code == 422 and "can't send email" in r.json()["detail"]
+
+    calls = []
+
+    class Resp:
+        def json(self):
+            return {"ok": True}
+    monkeypatch.setattr(mail.httpx, "post", lambda url, json=None, timeout=None, follow_redirects=False:
+                        calls.append(json) or Resp())
+    monkeypatch.setattr(settings, "MAIL_RELAY_URL", "https://script.google.com/macros/s/abc/exec")
+    monkeypatch.setattr(settings, "MAIL_RELAY_SECRET", "s" * 40)
+    assert client.get("/api/integrations").json()["mailbox"]["can_send"] is True
+    body = client.post(f"/api/approvals/{approval['id']}/approve", json={"delivery": "send"}).json()
+    assert body["result"]["status"] == "success"
+    assert calls[0]["to"] == "jane@customer.com" and calls[0]["subject"] == "Re: Login broken"
+    assert calls[0]["in_reply_to"] == "<m1@x>" and calls[0]["secret"] == "s" * 40

@@ -88,14 +88,14 @@ All screenshots are from a running copy of FlowMancer with real Gemini results, 
 - **Replies in the customer's language.** A Hindi, Spanish or Hinglish email gets its reply in the same language. The summary and fields stay in English, and the detected language is shown on the result.
 - **History tools.** Search every input and result by text, export the (filtered) history to CSV, report a wrong field with **This is wrong**, and **Re-run in crew mode** on any result.
 - **Ask FlowMancer assistant.** A chat drawer (top bar, or `Ctrl+J`) that answers questions using tools: search runs, open one run, list approvals, search the knowledge base, show stats, and draft a reply. A draft only goes into the approval queue. The assistant can't send anything, and it only sees the signed-in account's data.
-- **Accounts.** Email and password, or **Sign in with Google**. Each account has its own runs, workflows, approvals, knowledge base and usage. Passwords are hashed with scrypt, sessions use signed tokens (JWT), and repeated failed sign-ins are blocked for 15 minutes. For Google sign-in, the server asks Google to confirm that the token is valid and was issued to FlowMancer's client ID, and links the account to an existing one with the same verified email. A **Settings** page changes the name or password and deletes the account with all its data.
+- **Accounts.** Email and password, or **Sign in with Google**. Each account has its own runs, workflows, approvals, knowledge base and usage. Passwords are hashed with scrypt, sessions use signed tokens (JWT), and repeated failed sign-ins are blocked for 15 minutes. For Google sign-in, the server asks Google to confirm that the token is valid and was issued to FlowMancer's client ID, and links the account to an existing one with the same verified email. A **Settings** page changes the name (with Cancel) or the password (current password, then the new one twice, with show/hide buttons), and deletes the account after the email and current password are typed. **Forgot password?** on the sign-in page emails a one-time link that expires in 30 minutes; it opens a page to type the new password twice. The link's signed token includes a fingerprint of the current password, so it stops working once used, and the form answers the same way whether or not the email has an account. Google-only accounts set their first password through the same emailed link, so a stolen sign-in token alone can't add a password.
 - **Demo account and sample data.** **Try the demo** signs straight into a shared, sandboxed account with a daily run limit, reset every night by a background job. New accounts get a welcome with **Load sample data**, which adds the same sample business (clearly labelled, workflows switched off).
 - **Usage and cost page.** Every model request is recorded: feature, model, input and output tokens, response time, and whether it was rate-limited or answered by the backup model. The page shows totals, tokens per day, cost per lead/email/document, and an estimate at Google's paid prices.
 - **Triggers:** website form webhook, IMAP inbox polling, per-workflow webhooks, file upload.
 - **Actions:** Slack, HubSpot, Gmail drafts or sent replies, and outbound webhooks for Zapier, n8n and Make. Each account connects its own on the Integrations page. Credentials are tested live before they're saved, then stored encrypted (Fernet, key derived from `JWT_SECRET`).
 - **Visual workflow builder.** Drag-and-drop trigger, AI, condition and action steps, with templates. Graphs are validated on save (one trigger, no loops), and a test run lights up the path it took.
 - **Dashboard.** Live counts, activity charts, an AI status panel and full run history.
-- **Tests.** 128 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
+- **Tests.** 131 backend tests that use a fake model, so they run with no API key or network. They include checks that one account can't read another's data. CI also lints and builds the frontend.
 - **Accuracy test set in CI.** 100 labelled cases scored against the real model, with a Markdown report. It runs weekly, on demand, and on pull requests that change prompts or the AI code.
 
 ## Tech stack
@@ -184,7 +184,9 @@ Everything lives in `backend/.env`. Only `GEMINI_API_KEY` is required. [`backend
 | `JWT_SECRET` | Signs sign-in tokens. Empty = generated and saved in `backend/.flowmancer_secret`. Set 32+ random characters for Docker or a server | generated |
 | `ALLOW_SIGNUPS` | `false` stops new sign-ups (the first account is always allowed) | `true` |
 | `INBOX_OWNER_EMAIL` | The server owner: uses the Slack, HubSpot, webhook and IMAP settings above | first account (never the demo) |
-| `SMTP_HOST` / `SMTP_PORT` | Sending approved replies for the server mailbox | from `IMAP_HOST`, `465` |
+| `SMTP_HOST` / `SMTP_PORT` | Sending approved replies and reset links from the server mailbox | from `IMAP_HOST`, `465` |
+| `MAIL_RELAY_URL` / `MAIL_RELAY_SECRET` | Send email over HTTPS where SMTP is blocked (Render's free plan). See [below](#sending-email-on-renders-free-plan) | - |
+| `FRONTEND_URL` | Website address used in password-reset links | the requesting site, if it's in `CORS_ORIGINS` |
 | `DEMO_ENABLED` | Show **Try the demo** and keep the shared demo account (reset nightly) | `true` |
 | `DEMO_DAILY_RUN_LIMIT` / `DAILY_RUN_LIMIT` | Runs per day for the demo account / every other account except the server owner (0 = no limit) | `30` / `20` |
 | `LOCAL_UTC_OFFSET_MINUTES` | Where "midnight" is for daily limits and the demo reset | `330` (IST) |
@@ -198,6 +200,21 @@ Integrations that aren't connected are reported as "skipped" and never break a r
 ### Triggers and your trigger key
 
 The public triggers (`/api/triggers/form` and `/api/triggers/webhook/{id}`) are called by other websites, so they can't use your sign-in. Instead, each account has a **trigger key**. Copy it from the **Integrations** page and add it to the URL as `?key=...` or send it in the `X-FlowMancer-Key` header. The run is saved to the account that owns the key. If the key leaks, press **Rotate** to replace it; the old key stops working.
+
+### Sending email on Render's free plan
+
+Render's free plan blocks outgoing SMTP (ports 25, 465 and 587), so password-reset emails and **Send now** can't use Gmail's SMTP there. Reading the inbox and saving drafts still work, because IMAP uses port 993. At start-up the server checks whether SMTP gets out and only offers sending where it can work.
+
+The free fix is a small Google Apps Script, [`docs/mail-relay.gs`](docs/mail-relay.gs), that sends from your Gmail account over HTTPS. Because Gmail itself sends the email, it isn't marked as spoofed.
+
+1. Sign in to the Gmail account in `IMAP_USER`, open [script.google.com](https://script.google.com) and create a new project.
+2. Replace the code with the contents of `docs/mail-relay.gs` and save.
+3. **Project Settings** (gear) → **Script properties** → add `SECRET` with a random value of 32+ characters (for example the output of `python -c "import secrets; print(secrets.token_urlsafe(32))"`).
+4. Choose the `authorize` function, press **Run** and allow access (Advanced → Go to project → Allow; it's your own script).
+5. **Deploy** → **New deployment** → type **Web app**, *Execute as* **Me**, *Who has access* **Anyone** → **Deploy**, and copy the web app URL.
+6. On Render, set `MAIL_RELAY_URL` to that URL and `MAIL_RELAY_SECRET` to the same secret, then redeploy.
+
+Gmail lets scripts email about 100 recipients a day. A paid Render plan allows SMTP and doesn't need the relay.
 
 ### Sign in with Google
 
@@ -262,6 +279,7 @@ Every endpoint except sign-in, the public triggers and health checks needs an `A
 | `POST /api/auth/google` | Sign in with Google: send the access token from Google's sign-in popup (or an ID token) |
 | `POST /api/auth/demo` | Sign in to the shared demo account |
 | `PATCH /api/auth/me` · `POST /api/auth/password` · `DELETE /api/auth/me` | Settings: change name or password, delete the account |
+| `POST /api/auth/forgot-password` · `POST /api/auth/reset-password` | Email a one-time reset link; set the new password from it |
 | `POST /api/auth/trigger-key/rotate` | Replace your trigger key |
 | `POST /api/assistant/chat` | Ask FlowMancer: send the conversation, get a reply plus the tools it used |
 | `POST /api/use-cases/qualify-lead` · `process-email` · `process-document` `?mode=quick\|crew` | Process and wait for the result |
@@ -311,16 +329,16 @@ Free hosts put the backend to sleep when it's idle. The first visit then takes u
 
 ## Known limitations
 
-- **Accounts are basic.** There's no password reset, email verification or roles. Rate limiting covers failed sign-ins only. The sign-in token is kept in the browser's local storage, so a script injected into the page could read it.
+- **Accounts are basic.** There's no email verification at sign-up and no roles. Rate limiting covers failed sign-ins and reset requests (3 per email and 10 per address every 15 minutes, kept in memory). Changing a password doesn't sign out other devices; sign-ins last 7 days. The sign-in token is kept in the browser's local storage, so a script injected into the page could read it.
 - **Costs are estimates.** They use the token counts each model reports and the prices in `AI_PRICES`, not Google's bill. Usage before this feature was added isn't counted.
 - **Connections use keys, not OAuth.** Slack uses an incoming webhook URL, HubSpot a Service Key and Gmail an app password. OAuth would need registered apps, and Gmail's scopes need a Google security assessment.
 - **The accuracy test set is small** (100 cases written by the author). It catches regressions; it doesn't prove the model is right on real-world data.
 - **Research is best-effort.** Web results can be outdated or about a different company with the same name. Sources are shown so a person can check them.
 - **Scanned PDFs** (images) need OCR, which isn't included.
-- **The inbox uses IMAP app passwords,** not OAuth. Fetched emails are marked as read. **Send now** uses SMTP with the same app password.
+- **The inbox uses IMAP app passwords,** not OAuth. Fetched emails are marked as read. **Send now** uses SMTP with the same app password, or the mail relay for the server mailbox. On hosts that block SMTP, other accounts can save drafts but not send.
 - **Run one backend process.** The knowledge store is a local folder (rebuilt from the database on start-up).
 - **Gmail only for the inbox.** Outlook.com no longer accepts app passwords for IMAP.
-- **Live testing so far.** Slack has been tested against a live workspace. Gmail sign-in and access to the Inbox and Drafts folders work with a real account. Fetching emails and saving drafts are covered by the test suite but not yet tested end to end on that account. The Docker setup and HubSpot are tested with fakes only. Sending over SMTP and the per-account Connect forms are tested with fakes only. Google sign-in is tested with a fake token checker; the button itself renders on the sign-in page, but a real Google sign-in needs your own client ID.
+- **Live testing so far.** Slack has been tested against a live workspace. Gmail sign-in and access to the Inbox and Drafts folders work with a real account. Fetching emails and saving drafts are covered by the test suite but not yet tested end to end on that account. The Docker setup and HubSpot are tested with fakes only. Sending over SMTP, the mail relay, reset emails and the per-account Connect forms are tested with fakes only. Google sign-in is tested with a fake token checker; the button itself renders on the sign-in page, but a real Google sign-in needs your own client ID.
 
 ## Author
 

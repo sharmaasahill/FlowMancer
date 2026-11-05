@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform, type Variants } from 'framer-motion';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Orb from '@/components/Orb';
 import { cn, STATUS_TONES } from '@/lib/utils';
 
@@ -130,6 +130,26 @@ export function Field({ label, htmlFor, hint, children }: {
       <label htmlFor={htmlFor} className="mb-1.5 block text-[13px] font-medium text-bone/85">{label}</label>
       {children}
       {hint && <p className="mt-1.5 text-xs text-fog">{hint}</p>}
+    </div>
+  );
+}
+
+/** A password box with a show/hide (eye) button. */
+export function PasswordInput({ id, value, onChange, autoComplete = 'current-password', minLength, disabled, required = true }: {
+  id: string; value: string; onChange: (v: string) => void; autoComplete?: string; minLength?: number;
+  disabled?: boolean; required?: boolean;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input id={id} type={show ? 'text' : 'password'} required={required} minLength={minLength} maxLength={200}
+        autoComplete={autoComplete} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}
+        className="field pr-11" />
+      <button type="button" onClick={() => setShow((s) => !s)} disabled={disabled}
+        aria-label={show ? 'Hide password' : 'Show password'} aria-controls={id}
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-fog hover:text-bone disabled:opacity-40">
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
     </div>
   );
 }

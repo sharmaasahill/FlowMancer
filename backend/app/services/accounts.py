@@ -51,6 +51,11 @@ def reset_throttle():
         _failures.clear()
 
 
+def clear_failures(email: str):
+    with _lock:
+        _failures.pop(email, None)
+
+
 # ---------- accounts ----------
 def normalize_email(email: str) -> str:
     return email.strip().lower()
@@ -202,11 +207,17 @@ def update_name(db: Session, user: User, name: str) -> User:
     return user
 
 
+NO_PASSWORD = ("You sign in with Google and have no password yet. Use the emailed link "
+               "(Settings > Email me a link) to set one.")
+
+
 def change_password(db: Session, user: User, current: Optional[str], new: str) -> User:
-    """Accounts that only use Google have no password yet and can set one without the current one."""
+    """Needs the current password. Accounts without one set it through an emailed link instead,
+    so a stolen sign-in token alone can't add a password to someone's account."""
     _not_demo(user)
-    if user.password_hash:
-        _check_password(user, current)
+    if not user.password_hash:
+        raise AccountError(NO_PASSWORD, 400)
+    _check_password(user, current)
     user.password_hash = security.hash_password(new)
     db.commit()
     db.refresh(user)
@@ -229,8 +240,9 @@ def delete_account(db: Session, user: User, confirm_email: str, password: Option
     _not_demo(user)
     if normalize_email(confirm_email or "") != user.email:
         raise AccountError("Type your email address exactly to confirm.", 400)
-    if user.password_hash:
-        _check_password(user, password)
+    if not user.password_hash:
+        raise AccountError("Set a password first (Settings > Email me a link), then delete the account with it.", 400)
+    _check_password(user, password)
     owner = inbox_owner(db)
     if owner is not None and owner.id == user.id and server_integrations_set():
         raise AccountError("This account owns the integrations set in the server's backend/.env. Remove them "

@@ -20,6 +20,7 @@ export default function PrivacyPage() {
           <li><b>If you sign in with Google:</b> your name, email address, whether Google has verified that email, and your Google account ID. That&apos;s all we receive.</li>
           <li><b>Connections you add:</b> the Slack webhook URL, HubSpot key, Gmail address and app password, or webhook URL you connect. They are stored encrypted and used only for your account.</li>
           <li><b>What you submit:</b> the leads, emails, documents and knowledge-base text you enter, the AI results, your approvals, workflows and questions to the assistant.</li>
+          <li><b>Emails from us:</b> only a password-reset link, and only when you ask for one on the sign-in or Settings page.</li>
           <li><b>Usage records:</b> for each AI request, the model used, token counts, response time and whether it succeeded.</li>
         </ul>
 

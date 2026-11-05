@@ -19,7 +19,8 @@ os.environ.update({
     "SLACK_WEBHOOK_URL": "", "HUBSPOT_ACCESS_TOKEN": "", "WEBHOOK_URL": "",
     "IMAP_HOST": "", "IMAP_USER": "", "IMAP_PASSWORD": "", "INBOX_POLL_SECONDS": "0",
     "JWT_SECRET": "test-secret-0123456789-abcdefghijklmnop", "ALLOW_SIGNUPS": "true", "INBOX_OWNER_EMAIL": "",
-    "GOOGLE_CLIENT_ID": "", "DEMO_ENABLED": "false", "DAILY_RUN_LIMIT": "0", "CORS_ORIGINS": '["http://localhost:3000"]', "DEBUG": "false",
+    "GOOGLE_CLIENT_ID": "", "DEMO_ENABLED": "false", "SMTP_PROBE": "false", "MAIL_RELAY_URL": "", "MAIL_RELAY_SECRET": "",
+    "FRONTEND_URL": "", "DAILY_RUN_LIMIT": "0", "CORS_ORIGINS": '["http://localhost:3000"]', "DEBUG": "false",
     "AI_PROVIDER": "gemini", "GEMINI_API_KEY": "", "OLLAMA_FALLBACK": "false",
     "CREWAI_DISABLE_TELEMETRY": "true", "OTEL_SDK_DISABLED": "true",
 })
@@ -130,8 +131,11 @@ def _isolate(monkeypatch):
     if existing:
         col.delete(ids=existing)
 
-    from app.services import accounts
+    from app.integrations import mail
+    from app.services import accounts, password_reset
     accounts.reset_throttle()
+    password_reset.reset_limits()
+    monkeypatch.setattr(mail, "_smtp_ok", None)
 
     FAKE_AI.reset()
     monkeypatch.setattr(llm, "structured_invoke", FAKE_AI.structured_invoke)

@@ -14,6 +14,7 @@ from app.api import (approvals, assistant, auth, connections, executions, knowle
                      use_cases, workflows)
 from app.core.config import settings
 from app.core.database import init_db
+from app.integrations import mail
 from app.services import demo, inbox
 from app.services import knowledge as knowledge_store
 from app.services.limits import RunLimitError
@@ -37,6 +38,7 @@ async def lifespan(_: FastAPI):
     threading.Thread(target=_rebuild_knowledge, name="knowledge-rebuild", daemon=True).start()
     inbox.start_background_polling()
     demo.start_scheduler()
+    mail.start_smtp_probe()
     log.info("%s v%s started. Docs: /api/docs", settings.APP_NAME, settings.APP_VERSION)
     yield
     inbox.stop_background_polling()

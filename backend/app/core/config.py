@@ -92,6 +92,14 @@ class Settings(BaseSettings):
     # Sending approved replies (the "Send" option). Empty = derived from IMAP_HOST (imap.x -> smtp.x)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 465
+    # Check at start-up whether this host lets email out (Render's free plan blocks SMTP ports)
+    SMTP_PROBE: bool = True
+    # Mail relay: a Google Apps Script in the IMAP_USER Gmail account that sends over HTTPS
+    # (docs/mail-relay.gs). Used for the server mailbox when set, so email works where SMTP is blocked.
+    MAIL_RELAY_URL: str = ""
+    MAIL_RELAY_SECRET: str = ""
+    # The website address used in password-reset links. Empty = the browser's address, if it's in CORS_ORIGINS
+    FRONTEND_URL: str = ""
     # ---------- Actions ----------
     # Server-level integrations below belong to the server owner (INBOX_OWNER_EMAIL, or the first account).
     # Every other account connects its own on the Integrations page.

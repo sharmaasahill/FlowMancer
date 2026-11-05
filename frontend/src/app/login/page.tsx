@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, MailCheck } from 'lucide-react';
 import GoogleButton from '@/components/GoogleButton';
 import Orb from '@/components/Orb';
 import { ErrorBanner, Field, Segmented, Spinner } from '@/components/ui';
@@ -28,6 +28,9 @@ function LoginForm() {
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [demoEnabled, setDemoEnabled] = useState(false);
+  const [resetEnabled, setResetEnabled] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [resetSent, setResetSent] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +43,7 @@ function LoginForm() {
       setSignupsOpen(c.signups_open);
       setGoogleClientId(c.google_client_id);
       setDemoEnabled(c.demo_enabled);
+      setResetEnabled(c.password_reset);
       if (!c.has_users) setMode('signup');
       else if (!c.signups_open) setMode('signin');
     }).catch(() => {}).finally(() => setConfigLoaded(true));
@@ -61,6 +65,19 @@ function LoginForm() {
   }, [status, next, router]);
 
   const google = (accessToken: string) => attempt(() => signInWithGoogle(accessToken));
+  const sendReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      setResetSent(await authApi.forgotPassword(email));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const showForgot = (on: boolean) => { setForgot(on); setResetSent(null); setError(null); };
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     attempt(() => (mode === 'signin' ? signIn(email, password) : signUp(name, email, password)));
@@ -78,6 +95,34 @@ function LoginForm() {
           <p className="mt-3 text-sm text-fog">AI that reads your leads, emails and documents, and asks before it acts.</p>
         </div>
 
+        {forgot ? (
+          <div className="glass-strong p-7">
+            <h2 className="text-lg font-semibold text-bone">Forgot your password?</h2>
+            {resetSent ? (
+              <div className="mt-4 space-y-4">
+                <p className="flex gap-3 rounded-2xl border border-jade/25 bg-jade/[0.06] p-4 text-sm text-bone/90" role="status">
+                  <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-jade" aria-hidden />{resetSent}
+                </p>
+                <p className="text-sm text-fog">Check your inbox, and the Spam folder too. Open the link in the email to choose a new password.</p>
+              </div>
+            ) : (
+              <form onSubmit={sendReset} className="mt-4 space-y-4">
+                <p className="text-sm text-fog">Enter your account&apos;s email and we&apos;ll send you a link to set a new password.</p>
+                <Field label="Email" htmlFor="reset-email">
+                  <input id="reset-email" type="email" required autoComplete="email" value={email}
+                    onChange={(e) => setEmail(e.target.value)} className="field" placeholder="you@company.com" />
+                </Field>
+                <ErrorBanner message={error} />
+                <button type="submit" disabled={busy} className="btn-primary w-full !py-3 text-[15px]">
+                  {busy && <Spinner className="h-4 w-4 text-white" />}Email me a reset link
+                </button>
+              </form>
+            )}
+            <button type="button" onClick={() => showForgot(false)} className="btn-quiet mt-4 w-full !py-2.5 text-sm">
+              <ArrowLeft className="h-4 w-4" aria-hidden />Back to sign in
+            </button>
+          </div>
+        ) : (
         <div className="glass-strong p-7">
           {signupsOpen && (
             <div className="mb-6 flex justify-center">
@@ -123,6 +168,13 @@ function LoginForm() {
                 </button>
               </div>
             </Field>
+            {mode === 'signin' && resetEnabled && (
+              <div className="-mt-2 text-right">
+                <button type="button" onClick={() => showForgot(true)} className="text-xs font-semibold text-blush hover:underline">
+                  Forgot password?
+                </button>
+              </div>
+            )}
             <ErrorBanner message={error} />
             <button type="submit" disabled={busy} className="btn-primary group w-full !py-3 text-[15px]">
               {busy ? <Spinner className="h-4 w-4 text-white" /> : null}
@@ -137,6 +189,7 @@ function LoginForm() {
             </button>
           )}
         </div>
+        )}
         {!configLoaded && <div className="mt-5 text-center"><WakingHint /></div>}
         <nav className="mt-6 flex justify-center gap-5 text-xs text-fog" aria-label="About FlowMancer">
           <Link href="/" className="hover:text-bone">What is FlowMancer?</Link>

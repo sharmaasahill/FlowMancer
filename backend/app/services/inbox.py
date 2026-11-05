@@ -38,6 +38,7 @@ def status(db: Session, user: User) -> Dict:
     box = integ.mailbox
     return {
         "configured": box is not None,
+        "can_send": integ.can_send(),
         "source": integ.sources.get("gmail"),
         "host": box.host if box else None,
         "user": box.user if box else None,

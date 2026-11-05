@@ -159,7 +159,7 @@ export default function ApprovalsPage() {
   const [bulk, setBulk] = useState<'approve' | 'reject' | null>(null);
   const toast = useToast();
   const { refresh, integrations } = useSystem();
-  const canSend = !!integrations?.mailbox.configured;
+  const canSend = !!integrations?.mailbox.can_send;
 
   const load = useCallback(() => {
     approvalsApi.list(filter).then((a) => { setItems(a); setError(null); }).catch((e) => setError(errorMessage(e)));

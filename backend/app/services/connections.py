@@ -59,6 +59,9 @@ class UserIntegrations:
             return dict(NOT_CONNECTED)
         return mail.append_draft(to, subject, body, in_reply_to, box=self.mailbox)
 
+    def can_send(self) -> bool:
+        return mail.can_send(self.mailbox)
+
     def send(self, to: str, subject: str, body: str, in_reply_to: Optional[str] = None) -> dict:
         if self.mailbox is None:
             return dict(NOT_CONNECTED)
